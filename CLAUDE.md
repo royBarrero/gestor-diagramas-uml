@@ -66,6 +66,37 @@ Los módulos de IA (voz, foto, agente) NO son actores — son funcionalidad inte
 
 Nota de priorización: dentro del Ciclo 2, el orden de avance preferido es voz → foto → generación de backend, antes que frontend/agente/offline. Agente Asistente y Modo Offline son los que más probablemente queden solo documentados sin implementación completa.
 
+## Modelo de base de datos (entidades y atributos)
+
+### Usuario
+- id (PK)
+- nombre
+- email (único)
+- password_hash
+- created_at
+
+### Proyecto
+- id (PK)
+- nombre
+- descripcion
+- id_usuario_creador (FK → Usuario)
+- created_at
+
+### MiembroProyecto
+Tabla intermedia que resuelve la relación muchos a muchos entre Usuario y Proyecto, y guarda el rol de cada usuario dentro de ese proyecto.
+- id (PK)
+- id_proyecto (FK → Proyecto)
+- id_usuario (FK → Usuario)
+- rol (administrador / colaborador)
+- fecha_union
+
+### Diagrama
+- id (PK)
+- id_proyecto (FK → Proyecto)
+- nombre
+- contenido (JSONB — acá van los nodos/clases, atributos, métodos y relaciones del diagrama, tal como los maneja React Flow)
+- updated_at
+
 ## Estilo de trabajo esperado de Claude Code
 
 - Conversación tipo compañero de trabajo desarrollando el proyecto en conjunto, sin encuestas de opción múltiple ni checklists innecesarios.
