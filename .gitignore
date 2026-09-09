@@ -1,0 +1,26 @@
+﻿# Python / Backend
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.env
+*.pyc
+
+# Node / Frontend
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+frontend/build/
+
+# Flutter / Mobile
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugin-versions
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
