@@ -1,0 +1,147 @@
+.pagina {
+  min-height: 100%;
+  padding: 48px 64px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.titulo {
+  font-size: 24px;
+  color: var(--text-main);
+}
+
+.headerAcciones {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.botonNuevo {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 10px 16px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.avatarUsuario {
+  position: relative;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--text-main);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+}
+
+.puntoInvitacion {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5484d;
+  border: 2px solid var(--bg-main);
+}
+
+.avatarUsuario:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tarjeta:hover {
+  border-color: var(--accent);
+}
+
+.rolBadge {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.nombreProyecto {
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.colaboradores {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.accionesTarjeta {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.botonEditar,
+.botonEliminar {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  background: transparent;
+  color: var(--text-main);
+}
+
+.botonEditar:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.botonEliminar:hover {
+  border-color: #e5484d;
+  color: #e5484d;
+}
+
+.error {
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.textoMuted {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}

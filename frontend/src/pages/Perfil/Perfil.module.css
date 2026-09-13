@@ -1,0 +1,151 @@
+.pagina {
+  min-height: 100%;
+  padding: 48px 64px;
+  display: flex;
+  justify-content: center;
+}
+
+.contenedor {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.volver {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  align-self: flex-start;
+}
+
+.volver:hover {
+  color: var(--accent);
+}
+
+.tarjetaDatos,
+.tarjetaProyectos {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 24px;
+}
+
+.titulo {
+  font-size: 24px;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+.subtitulo {
+  font-size: 18px;
+  color: var(--text-main);
+  margin-bottom: 16px;
+}
+
+.textoMuted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.datos dt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.datos dd {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.listaProyectos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemProyecto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.nombreProyecto {
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.rolBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.filaAccionesInvitacion {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.botonAceptar {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 6px 12px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+}
+
+.botonRechazar {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 6px 12px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+}
+
+.botonRechazar:hover {
+  border-color: #e5484d;
+  color: #e5484d;
+}
+
+.botonLogout {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid #e5484d;
+  border-radius: 6px;
+  color: #e5484d;
+  padding: 10px 16px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.botonLogout:hover {
+  background: #e5484d;
+  color: var(--text-main);
+}
