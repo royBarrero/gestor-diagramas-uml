@@ -11,31 +11,35 @@ from app.models.usuario import Usuario
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> Usuario:
-    credenciales_invalidas = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudo validar la sesión.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
+def obtener_usuario_desde_token(token: str, db: Session) -> Usuario | None:
+    """Igual que get_current_user pero sin lanzar HTTPException — para usar
+    fuera de una dependencia de FastAPI (ej. el handshake de WebSocket)."""
     payload = decode_access_token(token)
     if payload is None:
-        raise credenciales_invalidas
+        return None
 
     id_usuario = payload.get("sub")
     if id_usuario is None:
-        raise credenciales_invalidas
+        return None
 
     try:
         id_usuario = int(id_usuario)
     except ValueError:
-        raise credenciales_invalidas
+        return None
 
-    usuario = db.query(Usuario).filter(Usuario.id == id_usuario).first()
+    return db.query(Usuario).filter(Usuario.id == id_usuario).first()
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    usuario = obtener_usuario_desde_token(token, db)
     if usuario is None:
-        raise credenciales_invalidas
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar la sesión.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return usuario

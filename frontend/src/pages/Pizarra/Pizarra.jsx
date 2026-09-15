@@ -4,7 +4,9 @@ import { Background, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { api } from '../../services/api'
 import { PizarraProvider, usePizarra } from '../../contexts/PizarraContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { useDebouncedEffect } from '../../hooks/useDebouncedEffect'
+import { useColaboracion } from '../../hooks/useColaboracion'
 import ClaseNode from '../../components/Pizarra/ClaseNode'
 import RelacionEdge from '../../components/Pizarra/RelacionEdge'
 import Toolbar from '../../components/Pizarra/Toolbar'
@@ -16,6 +18,9 @@ import styles from './Pizarra.module.css'
 
 const tiposDeNodo = { clase: ClaseNode }
 const tiposDeEdge = { relacion: RelacionEdge }
+
+const PALETA_COLABORADORES = ['#4c8dff', '#e0a030', '#33b679', '#e05c5c', '#a06ce0', '#3fbfbf']
+const colorPorUsuario = (id) => PALETA_COLABORADORES[id % PALETA_COLABORADORES.length]
 
 function LienzoPizarra({ diagramaId }) {
   const {
@@ -33,10 +38,29 @@ function LienzoPizarra({ diagramaId }) {
     seleccionarClase,
     manejarClickParaConectar,
     cancelarOrigenConexion,
+    reemplazarDiagrama,
+    seleccionId,
   } = usePizarra()
+  const { usuario } = useAuth()
 
   const [estadoGuardado, setEstadoGuardado] = useState('guardado')
   const primeraCarga = useRef(true)
+
+  const { colaboradores, estadoConexion } = useColaboracion(diagramaId, {
+    nodes,
+    edges,
+    reemplazarDiagrama,
+    seleccionId,
+  })
+  const otrosColaboradores = colaboradores.filter((c) => c.id !== usuario?.id)
+
+  const presenciaPorClase = {}
+  otrosColaboradores.forEach((c) => {
+    if (c.claseId) presenciaPorClase[c.claseId] = { nombre: c.nombre, color: colorPorUsuario(c.id) }
+  })
+  const nodesConPresencia = nodes.map((n) =>
+    presenciaPorClase[n.id] ? { ...n, data: { ...n.data, presencia: presenciaPorClase[n.id] } } : n
+  )
 
   useDebouncedEffect(
     () => {
@@ -77,13 +101,32 @@ function LienzoPizarra({ diagramaId }) {
     <div className={styles.pagina}>
       <header className={styles.header}>
         <h1 className={styles.titulo}>Diagrama de Clases</h1>
-        <span className={styles.estado}>
-          {estadoGuardado === 'guardando'
-            ? 'Guardando...'
-            : estadoGuardado === 'error'
-              ? 'Error al guardar'
-              : 'Guardado'}
-        </span>
+
+        <div className={styles.headerDerecha}>
+          {otrosColaboradores.length > 0 && (
+            <div className={styles.colaboradores} title={otrosColaboradores.map((c) => c.nombre).join(', ')}>
+              {otrosColaboradores.map((c) => (
+                <span key={c.id} className={styles.colaboradorAvatar}>
+                  {c.nombre?.[0]?.toUpperCase() ?? '?'}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {estadoConexion !== 'conectado' && (
+            <span className={styles.estadoConexion}>
+              {estadoConexion === 'reconectando' ? 'Reconectando...' : 'Sin conexión'}
+            </span>
+          )}
+
+          <span className={styles.estado}>
+            {estadoGuardado === 'guardando'
+              ? 'Guardando...'
+              : estadoGuardado === 'error'
+                ? 'Error al guardar'
+                : 'Guardado'}
+          </span>
+        </div>
       </header>
 
       <div className={styles.cuerpo}>
@@ -94,7 +137,7 @@ function LienzoPizarra({ diagramaId }) {
           <div className={`${styles.canvas} grid-bg`}>
             <ErrorBoundaryLienzo>
               <ReactFlow
-                nodes={nodes}
+                nodes={nodesConPresencia}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}

@@ -43,12 +43,21 @@ function ClaseNode({ id, data }) {
 
   return (
     <div className={styles.nodo}>
+      {data.presencia && (
+        <div className={styles.tagPresencia} style={{ background: data.presencia.color }}>
+          <i className="ti ti-pointer" /> {data.presencia.nombre}
+        </div>
+      )}
+
       <Handle id="top" type="source" position={Position.Top} className={styles.handle} />
       <Handle id="right" type="source" position={Position.Right} className={styles.handle} />
       <Handle id="bottom" type="source" position={Position.Bottom} className={styles.handle} />
       <Handle id="left" type="source" position={Position.Left} className={styles.handle} />
 
-      <div className={`${styles.contenido} ${esOrigenConexion ? styles.origen : ''}`}>
+      <div
+        className={`${styles.contenido} ${esOrigenConexion ? styles.origen : ''}`}
+        style={data.presencia ? { borderColor: data.presencia.color } : undefined}
+      >
         <div className={styles.header} onDoubleClick={() => setEditandoNombre(true)}>
           {editandoNombre ? (
             <input

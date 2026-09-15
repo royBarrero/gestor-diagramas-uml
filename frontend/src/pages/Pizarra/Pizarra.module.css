@@ -25,6 +25,42 @@
   color: var(--text-muted);
 }
 
+.headerDerecha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.colaboradores {
+  display: flex;
+}
+
+.colaboradorAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(76, 141, 255, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: -6px;
+}
+
+.colaboradores .colaboradorAvatar:first-child {
+  margin-left: 0;
+}
+
+.estadoConexion {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #e0a030;
+}
+
 .cuerpo {
   flex: 1;
   display: flex;

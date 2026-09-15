@@ -21,6 +21,14 @@ export function PizarraProvider({ contenidoInicial, children }) {
 
   const claseSeleccionada = nodes.find((n) => n.id === seleccionId) ?? null
 
+  const reemplazarDiagrama = useCallback(
+    (contenido) => {
+      setNodes(contenido?.nodes ?? [])
+      setEdges(contenido?.edges ?? [])
+    },
+    [setNodes, setEdges]
+  )
+
   const seleccionarClase = useCallback((id) => setSeleccionId(id), [])
 
   const alternarPanelClases = useCallback(() => setPanelClasesAbierto((abierto) => !abierto), [])
@@ -230,6 +238,7 @@ export function PizarraProvider({ contenidoInicial, children }) {
     crearRelacion,
     eliminarRelacion,
     cambiarEstiloLinea,
+    reemplazarDiagrama,
     panelClasesAbierto,
     alternarPanelClases,
   }
