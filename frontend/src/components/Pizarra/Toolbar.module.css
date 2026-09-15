@@ -1,0 +1,45 @@
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.boton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.boton:hover {
+  border-color: var(--accent);
+  color: var(--text-main);
+}
+
+.activo {
+  background: rgba(76, 141, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--text-main);
+}
+
+.etiqueta {
+  white-space: nowrap;
+}
+
+.ayuda {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

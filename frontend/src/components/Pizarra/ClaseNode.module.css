@@ -1,0 +1,112 @@
+.nodo {
+  min-width: 200px;
+  position: relative;
+}
+
+.contenido {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.origen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.handle {
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border: 1px solid var(--bg-main);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(76, 141, 255, 0.1);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inputNombre {
+  flex: 1;
+  background: var(--bg-main);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 2px 6px;
+}
+
+.botonEliminar {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.botonEliminar:hover {
+  color: #e5484d;
+}
+
+.seccion {
+  padding: 6px 0;
+  min-height: 8px;
+}
+
+.separador {
+  border-top: 1px solid var(--border);
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.simbolo {
+  color: var(--accent);
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.inputFila {
+  flex: 1;
+  background: var(--bg-main);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 4px;
+}

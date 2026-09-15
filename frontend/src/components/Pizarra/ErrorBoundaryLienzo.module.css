@@ -1,0 +1,28 @@
+.contenedor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  text-align: center;
+}
+
+.titulo {
+  color: var(--text-main);
+  font-family: var(--font-heading);
+  font-size: 16px;
+}
+
+.detalle {
+  color: #e5484d;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  max-width: 480px;
+}
+
+.ayuda {
+  color: var(--text-muted);
+  font-size: 13px;
+}
