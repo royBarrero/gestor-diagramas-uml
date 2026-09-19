@@ -42,3 +42,11 @@ def exigir_miembro(proyecto: Proyecto, usuario: Usuario, db: Session) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tenés acceso a este proyecto.",
         )
+
+
+def exigir_administrador(proyecto: Proyecto, usuario: Usuario, db: Session) -> None:
+    if rol_de_usuario_en_proyecto(proyecto, usuario, db) != "administrador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador del proyecto puede realizar esta acción.",
+        )

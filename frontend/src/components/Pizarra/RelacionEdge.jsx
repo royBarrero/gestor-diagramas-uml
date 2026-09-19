@@ -135,7 +135,7 @@ function flechaPuntos(tipX, tipY, angulo) {
 function RelacionEdge({ id, source, target, data, selected }) {
   const nodoOrigen = useInternalNode(source)
   const nodoDestino = useInternalNode(target)
-  const { cambiarEstiloLinea } = usePizarra()
+  const { cambiarEstiloLinea, iniciarEdicionRelacion } = usePizarra()
 
   if (!nodoOrigen || !nodoDestino) return null
 
@@ -196,7 +196,7 @@ function RelacionEdge({ id, source, target, data, selected }) {
   const distancia = Math.hypot(targetX - sourceX, targetY - sourceY) || 1
   const unitX = Math.cos(angulo)
   const unitY = Math.sin(angulo)
-  const OFFSET_MULTIPLICIDAD = Math.min(18, distancia / 2 - 6)
+  const OFFSET_MULTIPLICIDAD = Math.min(30, distancia / 2 - 10)
   const labelOrigen = {
     x: sourceX + unitX * OFFSET_MULTIPLICIDAD,
     y: sourceY + unitY * OFFSET_MULTIPLICIDAD,
@@ -214,7 +214,7 @@ function RelacionEdge({ id, source, target, data, selected }) {
     <>
       <BaseEdge path={path} style={trazoEstilo} />
 
-      {(tipo === 'asociacion' || tipo === 'dependencia') && (
+      {tipo === 'dependencia' && (
         <polyline
           points={flechaPuntos(targetX, targetY, angulo)}
           fill="none"
@@ -294,6 +294,17 @@ function RelacionEdge({ id, source, target, data, selected }) {
                 <i className={`ti ${opcion.icono}`} />
               </button>
             ))}
+            <button
+              type="button"
+              title="Editar relación"
+              className={styles.miniMenuBoton}
+              onClick={(event) => {
+                event.stopPropagation()
+                iniciarEdicionRelacion({ id, source, target, data })
+              }}
+            >
+              <i className="ti ti-pencil" />
+            </button>
           </div>
         )}
       </EdgeLabelRenderer>

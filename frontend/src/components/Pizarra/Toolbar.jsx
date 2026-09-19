@@ -1,20 +1,13 @@
 import { usePizarra } from '../../contexts/PizarraContext'
+import { TIPOS_RELACION } from '../../constants/tiposRelacion'
 import styles from './Toolbar.module.css'
-
-const TIPOS = [
-  { valor: 'asociacion', etiqueta: 'Asociación', icono: 'ti-arrow-narrow-right' },
-  { valor: 'herencia', etiqueta: 'Herencia', icono: 'ti-triangle' },
-  { valor: 'agregacion', etiqueta: 'Agregación', icono: 'ti-diamond' },
-  { valor: 'composicion', etiqueta: 'Composición', icono: 'ti-square-rotated' },
-  { valor: 'dependencia', etiqueta: 'Dependencia', icono: 'ti-arrow-guide' },
-]
 
 function Toolbar() {
   const { tipoRelacionActivo, seleccionarTipoRelacion, origenConexionId } = usePizarra()
 
   return (
     <div className={styles.barra}>
-      {TIPOS.map((tipo) => (
+      {TIPOS_RELACION.map((tipo) => (
         <button
           key={tipo.valor}
           type="button"

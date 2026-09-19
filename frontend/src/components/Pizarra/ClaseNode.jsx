@@ -18,7 +18,7 @@ function FilaCampo({ item, editando, onDoubleClick, onCommit }) {
           onKeyDown={(event) => event.key === 'Enter' && event.target.blur()}
         />
       ) : (
-        <span className={styles.texto}>{item.texto || ' '}</span>
+        <span className={styles.texto}>{(item.tipo ? `${item.texto}: ${item.tipo}` : item.texto) || ' '}</span>
       )}
     </div>
   )

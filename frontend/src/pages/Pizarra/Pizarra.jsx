@@ -7,11 +7,20 @@ import { PizarraProvider, usePizarra } from '../../contexts/PizarraContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDebouncedEffect } from '../../hooks/useDebouncedEffect'
 import { useColaboracion } from '../../hooks/useColaboracion'
+import { useComandoVoz } from '../../hooks/useComandoVoz'
+import { useDigitalizacionImagen } from '../../hooks/useDigitalizacionImagen'
+import { useExportarDiagrama } from '../../hooks/useExportarDiagrama'
+import { useExportarImagen } from '../../hooks/useExportarImagen'
+import { useImportarDiagrama } from '../../hooks/useImportarDiagrama'
 import ClaseNode from '../../components/Pizarra/ClaseNode'
 import RelacionEdge from '../../components/Pizarra/RelacionEdge'
 import Toolbar from '../../components/Pizarra/Toolbar'
 import PanelClases from '../../components/Pizarra/PanelClases'
 import MultiplicidadModal from '../../components/Pizarra/MultiplicidadModal'
+import EditarRelacionModal from '../../components/Pizarra/EditarRelacionModal'
+import ExportarModal from '../../components/Pizarra/ExportarModal'
+import ImportarModal from '../../components/Pizarra/ImportarModal'
+import ArchivoMenu from '../../components/Pizarra/ArchivoMenu'
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
 import ErrorBoundaryLienzo from '../../components/Pizarra/ErrorBoundaryLienzo'
 import styles from './Pizarra.module.css'
@@ -22,7 +31,7 @@ const tiposDeEdge = { relacion: RelacionEdge }
 const PALETA_COLABORADORES = ['#4c8dff', '#e0a030', '#33b679', '#e05c5c', '#a06ce0', '#3fbfbf']
 const colorPorUsuario = (id) => PALETA_COLABORADORES[id % PALETA_COLABORADORES.length]
 
-function LienzoPizarra({ diagramaId }) {
+function LienzoPizarra({ diagramaId, diagramaNombre }) {
   const {
     nodes,
     edges,
@@ -40,11 +49,13 @@ function LienzoPizarra({ diagramaId }) {
     cancelarOrigenConexion,
     reemplazarDiagrama,
     seleccionId,
+    relacionAEditar,
+    cancelarEdicionRelacion,
+    editarRelacion,
   } = usePizarra()
   const { usuario } = useAuth()
 
   const [estadoGuardado, setEstadoGuardado] = useState('guardado')
-  const primeraCarga = useRef(true)
 
   const { colaboradores, estadoConexion } = useColaboracion(diagramaId, {
     nodes,
@@ -52,6 +63,30 @@ function LienzoPizarra({ diagramaId }) {
     reemplazarDiagrama,
     seleccionId,
   })
+  const { estado: estadoVoz, mensaje: mensajeVoz, alternarGrabacion } = useComandoVoz(diagramaId, {
+    onAplicado: reemplazarDiagrama,
+  })
+  const { estado: estadoFoto, mensaje: mensajeFoto, subirImagen } = useDigitalizacionImagen(diagramaId, {
+    onAplicado: reemplazarDiagrama,
+  })
+  const inputFotoRef = useRef(null)
+
+  function handleArchivoFoto(event) {
+    const archivo = event.target.files?.[0]
+    event.target.value = ''
+    subirImagen(archivo)
+  }
+
+  const [modalAbierto, setModalAbierto] = useState(null) // null | 'exportar' | 'importar'
+  const [importacionPendiente, setImportacionPendiente] = useState(null) // {archivo, formato} | null
+
+  const canvasRef = useRef(null)
+  const { estado: estadoExportar, exportar } = useExportarDiagrama(diagramaId)
+  const { estado: estadoExportarImagen, exportarImagen } = useExportarImagen(canvasRef, diagramaNombre)
+  const { estado: estadoImportar, mensaje: mensajeImportar, importar } = useImportarDiagrama(diagramaId, {
+    onAplicado: reemplazarDiagrama,
+  })
+
   const otrosColaboradores = colaboradores.filter((c) => c.id !== usuario?.id)
 
   const presenciaPorClase = {}
@@ -64,10 +99,6 @@ function LienzoPizarra({ diagramaId }) {
 
   useDebouncedEffect(
     () => {
-      if (primeraCarga.current) {
-        primeraCarga.current = false
-        return
-      }
       setEstadoGuardado('guardando')
       api
         .put(`/diagramas/${diagramaId}`, { contenido: { nodes, edges } })
@@ -126,6 +157,69 @@ function LienzoPizarra({ diagramaId }) {
                 ? 'Error al guardar'
                 : 'Guardado'}
           </span>
+
+          <button
+            type="button"
+            className={`${styles.botonCircular} ${estadoVoz === 'grabando' ? styles.botonCircularActivo : ''}`}
+            onClick={alternarGrabacion}
+            disabled={estadoVoz === 'procesando'}
+            title={estadoVoz === 'grabando' ? 'Detener grabación' : 'Comando de voz'}
+          >
+            <i className={`ti ${estadoVoz === 'grabando' ? 'ti-player-stop' : 'ti-microphone'}`} />
+          </button>
+
+          {estadoVoz !== 'inactivo' && estadoVoz !== 'grabando' && (
+            <span className={styles.estadoVoz}>
+              {estadoVoz === 'procesando' && 'Procesando comando...'}
+              {estadoVoz === 'aplicado' && 'Comando aplicado ✓'}
+              {estadoVoz === 'no_entendido' && `No entendí el comando: ${mensajeVoz}`}
+              {estadoVoz === 'error_ia' && 'El asistente de voz no está disponible ahora.'}
+              {estadoVoz === 'error' && mensajeVoz}
+            </span>
+          )}
+
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={inputFotoRef}
+            onChange={handleArchivoFoto}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            className={styles.botonCircular}
+            onClick={() => inputFotoRef.current?.click()}
+            disabled={estadoFoto === 'procesando'}
+            title="Digitalizar diagrama por foto"
+          >
+            <i className="ti ti-camera" />
+          </button>
+
+          {estadoFoto !== 'inactivo' && (
+            <span className={styles.estadoVoz}>
+              {estadoFoto === 'procesando' && 'Analizando imagen...'}
+              {estadoFoto === 'aplicado' && `Diagrama digitalizado ✓`}
+              {estadoFoto === 'parcial' && `Digitalización parcial: ${mensajeFoto}`}
+              {estadoFoto === 'fallido' && `No se pudo digitalizar: ${mensajeFoto}`}
+              {estadoFoto === 'error_ia' && 'El servicio de visión no está disponible ahora.'}
+              {estadoFoto === 'error' && mensajeFoto}
+            </span>
+          )}
+
+          <ArchivoMenu onExportar={() => setModalAbierto('exportar')} onImportar={() => setModalAbierto('importar')} />
+
+          {estadoExportar === 'error' && <span className={styles.estadoVoz}>No se pudo exportar el diagrama.</span>}
+          {estadoExportarImagen === 'error' && <span className={styles.estadoVoz}>No se pudo exportar la imagen.</span>}
+
+          {estadoImportar !== 'inactivo' && (
+            <span className={styles.estadoVoz}>
+              {estadoImportar === 'procesando' && 'Importando...'}
+              {estadoImportar === 'aplicado' && 'Diagrama importado ✓'}
+              {estadoImportar === 'formato_invalido' && `Archivo inválido: ${mensajeImportar}`}
+              {estadoImportar === 'error' && mensajeImportar}
+            </span>
+          )}
         </div>
       </header>
 
@@ -134,7 +228,7 @@ function LienzoPizarra({ diagramaId }) {
 
         <div className={styles.centro}>
           <Toolbar />
-          <div className={`${styles.canvas} grid-bg`}>
+          <div className={`${styles.canvas} grid-bg`} ref={canvasRef}>
             <ErrorBoundaryLienzo>
               <ReactFlow
                 nodes={nodesConPresencia}
@@ -160,12 +254,64 @@ function LienzoPizarra({ diagramaId }) {
         <MultiplicidadModal onConfirmar={handleConfirmarMultiplicidad} onCancelar={cancelarConexion} />
       )}
 
+      {relacionAEditar && (
+        <EditarRelacionModal
+          relacion={relacionAEditar}
+          onConfirmar={(cambios) => editarRelacion(relacionAEditar.id, cambios)}
+          onCancelar={cancelarEdicionRelacion}
+        />
+      )}
+
       {claseAEliminarId && (
         <ConfirmModal
           titulo="Eliminar clase"
           mensaje={`¿Seguro que querés eliminar "${nodoAEliminar?.data.nombre}"? También se eliminarán sus relaciones.`}
           onConfirm={confirmarEliminarClase}
           onCancel={cancelarEliminarClase}
+        />
+      )}
+
+      {modalAbierto === 'exportar' && (
+        <ExportarModal
+          onSeleccionarJson={() => {
+            exportar('json')
+            setModalAbierto(null)
+          }}
+          onSeleccionarPng={() => {
+            exportarImagen()
+            setModalAbierto(null)
+          }}
+          onSeleccionarXmi={() => {
+            exportar('xmi')
+            setModalAbierto(null)
+          }}
+          onCancelar={() => setModalAbierto(null)}
+        />
+      )}
+
+      {modalAbierto === 'importar' && (
+        <ImportarModal
+          onArchivoSeleccionado={(archivo, formato) => {
+            setImportacionPendiente({ archivo, formato })
+            setModalAbierto(null)
+          }}
+          onSeleccionarImagen={() => {
+            setModalAbierto(null)
+            inputFotoRef.current?.click()
+          }}
+          onCancelar={() => setModalAbierto(null)}
+        />
+      )}
+
+      {importacionPendiente && (
+        <ConfirmModal
+          titulo="Importar diagrama"
+          mensaje={`¿Seguro que querés importar "${importacionPendiente.archivo.name}"? Se reemplazará todo el contenido actual del diagrama.`}
+          onConfirm={() => {
+            importar(importacionPendiente.archivo, importacionPendiente.formato)
+            setImportacionPendiente(null)
+          }}
+          onCancel={() => setImportacionPendiente(null)}
         />
       )}
     </div>
@@ -197,7 +343,7 @@ function Pizarra() {
   return (
     <ReactFlowProvider key={diagrama.id}>
       <PizarraProvider contenidoInicial={diagrama.contenido}>
-        <LienzoPizarra diagramaId={diagrama.id} />
+        <LienzoPizarra diagramaId={diagrama.id} diagramaNombre={diagrama.nombre} />
       </PizarraProvider>
     </ReactFlowProvider>
   )

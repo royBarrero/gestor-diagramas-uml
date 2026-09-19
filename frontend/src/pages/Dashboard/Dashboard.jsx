@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
+import GenerarCodigoMenu from '../../components/Dashboard/GenerarCodigoMenu'
 import MiembrosModal from '../../components/MiembrosModal/MiembrosModal'
 import ProyectoFormModal from '../../components/ProyectoFormModal/ProyectoFormModal'
 import { useAuth } from '../../contexts/AuthContext'
@@ -120,6 +121,12 @@ function Dashboard() {
                   >
                     Eliminar
                   </button>
+                </div>
+              )}
+
+              {proyecto.rol === 'administrador' && (
+                <div className={styles.accionesGenerar}>
+                  <GenerarCodigoMenu proyectoId={proyecto.id} />
                 </div>
               )}
             </Link>

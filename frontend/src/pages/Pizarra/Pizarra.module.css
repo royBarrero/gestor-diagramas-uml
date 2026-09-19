@@ -61,6 +61,42 @@
   color: #e0a030;
 }
 
+.botonCircular {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(76, 141, 255, 0.12);
+  border: 1px solid transparent;
+  color: var(--accent);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.botonCircular:hover {
+  border-color: var(--accent);
+}
+
+.botonCircular:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.botonCircularActivo {
+  background: rgba(224, 92, 92, 0.15);
+  color: #e05c5c;
+}
+
+.estadoVoz {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 260px;
+}
+
 .cuerpo {
   flex: 1;
   display: flex;

@@ -108,6 +108,10 @@
   margin-top: auto;
 }
 
+.accionesGenerar {
+  display: flex;
+}
+
 .botonEditar,
 .botonEliminar {
   border: 1px solid var(--border);

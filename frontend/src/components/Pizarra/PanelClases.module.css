@@ -196,6 +196,19 @@
   padding: 5px 6px;
 }
 
+.inputTipo {
+  width: 58px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 6px;
+}
+
+.inputTipo:focus,
 .inputFila:focus {
   outline: none;
   border-color: var(--accent);

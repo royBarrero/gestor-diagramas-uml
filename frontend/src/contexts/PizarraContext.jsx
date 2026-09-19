@@ -18,6 +18,7 @@ export function PizarraProvider({ contenidoInicial, children }) {
   const [origenConexionId, setOrigenConexionId] = useState(null)
   const [pendienteConexion, setPendienteConexion] = useState(null)
   const [panelClasesAbierto, setPanelClasesAbierto] = useState(true)
+  const [relacionAEditar, setRelacionAEditar] = useState(null)
 
   const claseSeleccionada = nodes.find((n) => n.id === seleccionId) ?? null
 
@@ -65,16 +66,14 @@ export function PizarraProvider({ contenidoInicial, children }) {
   const agregarCampoItem = useCallback(
     (claseId, campo) => {
       const nuevoId = generarId(campo)
+      const nuevoItem =
+        campo === 'atributos'
+          ? { id: nuevoId, visibilidad: 'publico', tipo: '', texto: '' }
+          : { id: nuevoId, visibilidad: 'publico', texto: '' }
       setNodes((nds) =>
         nds.map((n) =>
           n.id === claseId
-            ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  [campo]: [...n.data[campo], { id: nuevoId, visibilidad: 'publico', texto: '' }],
-                },
-              }
+            ? { ...n, data: { ...n.data, [campo]: [...n.data[campo], nuevoItem] } }
             : n
         )
       )
@@ -209,6 +208,17 @@ export function PizarraProvider({ contenidoInicial, children }) {
     [setEdges]
   )
 
+  const iniciarEdicionRelacion = useCallback((edge) => setRelacionAEditar(edge), [])
+  const cancelarEdicionRelacion = useCallback(() => setRelacionAEditar(null), [])
+
+  const editarRelacion = useCallback(
+    (edgeId, cambios) => {
+      setEdges((eds) => eds.map((e) => (e.id === edgeId ? { ...e, data: { ...e.data, ...cambios } } : e)))
+      setRelacionAEditar(null)
+    },
+    [setEdges]
+  )
+
   const value = {
     nodes,
     edges,
@@ -238,6 +248,10 @@ export function PizarraProvider({ contenidoInicial, children }) {
     crearRelacion,
     eliminarRelacion,
     cambiarEstiloLinea,
+    relacionAEditar,
+    iniciarEdicionRelacion,
+    cancelarEdicionRelacion,
+    editarRelacion,
     reemplazarDiagrama,
     panelClasesAbierto,
     alternarPanelClases,

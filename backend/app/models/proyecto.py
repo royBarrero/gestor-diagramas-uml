@@ -17,6 +17,10 @@ class Proyecto(Base):
         Integer, ForeignKey("usuarios.id"), nullable=False, index=True
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # CU12: marca cuándo se generó el backend por última vez (CU11), para
+    # exigir que exista antes de poder generar el frontend. No se invalida
+    # si el diagrama cambia después — ver modelo_backend.py.
+    backend_generado_en = Column(DateTime(timezone=True), nullable=True)
 
     creador = relationship("Usuario", back_populates="proyectos_creados")
     miembros = relationship(

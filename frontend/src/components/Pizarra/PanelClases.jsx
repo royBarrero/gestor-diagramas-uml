@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { usePizarra } from '../../contexts/PizarraContext'
+import { TIPOS_DATO } from '../../constants/tiposDato'
 import styles from './PanelClases.module.css'
 
 const SIMBOLOS = { publico: '+', privado: '-', protegido: '#' }
@@ -54,6 +55,13 @@ function PanelClases() {
     return (
       <div className={styles.seccion}>
         <h3 className={styles.subtitulo}>{campo === 'atributos' ? 'Atributos' : 'Métodos'}</h3>
+        {campo === 'atributos' && (
+          <datalist id="tipos-dato">
+            {TIPOS_DATO.map((tipo) => (
+              <option key={tipo} value={tipo} />
+            ))}
+          </datalist>
+        )}
         {items.map((item, indice) => (
           <div key={item.id} className={styles.fila}>
             <button
@@ -66,12 +74,22 @@ function PanelClases() {
             >
               {SIMBOLOS[item.visibilidad]}
             </button>
+            {campo === 'atributos' && (
+              <input
+                className={styles.inputTipo}
+                list="tipos-dato"
+                placeholder="Tipo"
+                value={item.tipo ?? ''}
+                onChange={(event) => editarCampoItem(claseId, campo, item.id, { tipo: event.target.value })}
+              />
+            )}
             <input
               ref={(el) => {
                 if (el) inputRefs.current.set(item.id, el)
                 else inputRefs.current.delete(item.id)
               }}
               className={styles.inputFila}
+              placeholder="Nombre"
               value={item.texto}
               onChange={(event) => editarCampoItem(claseId, campo, item.id, { texto: event.target.value })}
               onKeyDown={(event) => handleEnter(claseId, campo, indice === items.length - 1, event)}
