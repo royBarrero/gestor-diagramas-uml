@@ -25,6 +25,12 @@
   color: var(--text-muted);
 }
 
+.headerIzquierda {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .headerDerecha {
   display: flex;
   align-items: center;

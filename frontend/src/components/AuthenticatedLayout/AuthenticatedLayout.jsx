@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider } from '../../contexts/AuthContext'
+import AsistenteFlotante from '../Asistente/AsistenteFlotante'
 
 function AuthenticatedLayout() {
   const token = localStorage.getItem('access_token')
@@ -11,6 +12,7 @@ function AuthenticatedLayout() {
   return (
     <AuthProvider>
       <Outlet />
+      <AsistenteFlotante />
     </AuthProvider>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { Background, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { api } from '../../services/api'
@@ -131,7 +131,12 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
   return (
     <div className={styles.pagina}>
       <header className={styles.header}>
-        <h1 className={styles.titulo}>Diagrama de Clases</h1>
+        <div className={styles.headerIzquierda}>
+          <Link to="/dashboard" className={styles.botonCircular} title="Volver a mis proyectos">
+            <i className="ti ti-arrow-left" />
+          </Link>
+          <h1 className={styles.titulo}>Diagrama de Clases</h1>
+        </div>
 
         <div className={styles.headerDerecha}>
           {otrosColaboradores.length > 0 && (

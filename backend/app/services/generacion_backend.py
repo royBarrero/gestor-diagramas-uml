@@ -73,7 +73,7 @@ def _imports_entidad(entidad: EntidadModelo) -> list[str]:
     return sorted(imports)
 
 
-def _campo_relacion_anotacion(rel) -> str:
+def _campo_relacion_anotacion(rel, entidad_nombre_java: str) -> str:
     anotacion = {
         "oneToOne": "OneToOne",
         "manyToOne": "ManyToOne",
@@ -94,7 +94,17 @@ def _campo_relacion_anotacion(rel) -> str:
     if rel.propietaria and rel.tipo in ("manyToOne", "oneToOne"):
         lineas.append(f'@JoinColumn(name = "{rel.nombre}_id")')
     elif rel.propietaria and rel.tipo == "manyToMany":
-        lineas.append(f'@JoinTable(name = "{rel.nombre}")')
+        # joinColumns/inverseJoinColumns explícitos (no sólo el nombre de la
+        # tabla intermedia): sin esto Hibernate infiere los nombres de FK por
+        # su cuenta, y el generador de datos de ejemplo (`_data_sql`) necesita
+        # poder predecirlos con certeza.
+        propia = entidad_nombre_java[:1].lower() + entidad_nombre_java[1:]
+        otra = rel.entidad_relacionada[:1].lower() + rel.entidad_relacionada[1:]
+        lineas.append(
+            f'@JoinTable(name = "{rel.nombre}", '
+            f'joinColumns = @JoinColumn(name = "{propia}_id"), '
+            f'inverseJoinColumns = @JoinColumn(name = "{otra}_id"))'
+        )
     if not rel.propietaria:
         # Sin esto, Jackson serializa el ciclo bidireccional (A -> B -> A -> ...)
         # y cualquier GET que devuelva esta entidad tira StackOverflowError.
@@ -125,7 +135,7 @@ def _renderizar_entidad(entidad: EntidadModelo, paquete: str) -> str:
         getters_setters.append(_bloque_getter_setter(campo.nombre, campo.tipo_java))
 
     for rel in entidad.relaciones:
-        anotacion = _campo_relacion_anotacion(rel)
+        anotacion = _campo_relacion_anotacion(rel, entidad.nombre_java)
         tipo_campo = f"List<{rel.entidad_relacionada}>" if rel.es_coleccion else rel.entidad_relacionada
         valor_inicial = " = new ArrayList<>()" if rel.es_coleccion else ""
         campos_lineas.append(f"    {anotacion}\n    private {tipo_campo} {rel.nombre}{valor_inicial};")
@@ -605,6 +615,11 @@ spring.h2.console.enabled=true
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 
+# data.sql trae datos de ejemplo: sin estas dos líneas Spring Boot lo
+# ejecuta antes de que Hibernate cree las tablas y falla con "tabla no existe".
+spring.jpa.defer-datasource-initialization=true
+spring.sql.init.mode=always
+
 # spring.datasource.url=jdbc:postgresql://localhost:5432/nombre_db
 # spring.datasource.driver-class-name=org.postgresql.Driver
 # spring.datasource.username=postgres
@@ -630,8 +645,9 @@ public class {clase} {{
 """, clase
 
 
-def _readme(artefacto: str, entidades: list[EntidadModelo]) -> str:
+def _readme(artefacto: str, entidades: list[EntidadModelo], nota_seed: str | None = None) -> str:
     endpoints = "\n".join(f"- `/api/{e.endpoint}` — CRUD de `{e.nombre_java}`" for e in entidades)
+    seccion_seed = f"\n## Datos de ejemplo\n\n{nota_seed}\n" if nota_seed else ""
     return f"""# {artefacto}
 
 Backend generado automáticamente a partir de un diagrama de clases UML.
@@ -650,7 +666,263 @@ CORS está habilitado para `/api/**` desde cualquier origen, así que también s
 {endpoints}
 
 Cada endpoint expone y recibe DTOs (paquete `dto/`), no las entidades JPA directamente, para evitar loops de serialización en relaciones bidireccionales. Los errores (recurso no encontrado, errores inesperados) devuelven un JSON estructurado (`timestamp`, `status`, `error`, `message`, `path`).
-"""
+{seccion_seed}"""
+
+
+# --------------------------------------------------------------------------
+# src/main/resources/data.sql — datos de ejemplo (seed data)
+# --------------------------------------------------------------------------
+
+
+def _a_snake_case(identificador: str) -> str:
+    """Replica la conversión que aplica en runtime la estrategia de naming
+    física por defecto de Spring Boot (`SpringPhysicalNamingStrategy`): acá no
+    se generan `@Table`/`@Column`, así que hay que predecir el mismo nombre
+    de tabla/columna que Hibernate termina usando para que `data.sql`
+    apunte a lo correcto."""
+    chars = list(identificador.replace(".", "_"))
+    i = 1
+    while i < len(chars) - 1:
+        if chars[i - 1].islower() and chars[i].isupper() and chars[i + 1].islower():
+            chars.insert(i, "_")
+            i += 1
+        i += 1
+    return "".join(chars).lower()
+
+
+def _nombre_tabla(entidad: EntidadModelo) -> str:
+    return _a_snake_case(entidad.nombre_java)
+
+
+def _nombre_columna(nombre_campo: str) -> str:
+    return _a_snake_case(nombre_campo)
+
+
+def _nombre_columna_fk(rel) -> str:
+    return _a_snake_case(f"{rel.nombre}_id")
+
+
+_PALABRAS_CLAVE_STRING = (
+    (("email", "correo"), lambda i: f"'contacto{i}@ejemplo.com'"),
+    (("telefono", "celular"), lambda i: f"'70000{i:03d}'"),
+    (("direccion",), lambda i: f"'Calle Ejemplo {i}'"),
+    (("descripcion",), lambda i: f"'Descripción de ejemplo {i}'"),
+)
+
+
+def _valor_ejemplo(tipo_java: str, nombre_campo: str, indice: int) -> str:
+    if tipo_java == "String":
+        clave = nombre_campo.lower()
+        for palabras, formatear in _PALABRAS_CLAVE_STRING:
+            if any(p in clave for p in palabras):
+                return formatear(indice)
+        etiqueta = nombre_campo[:1].upper() + nombre_campo[1:]
+        return f"'{etiqueta} ejemplo {indice}'"
+    if tipo_java in ("int", "long"):
+        return str(indice * 10)
+    if tipo_java in ("double", "float"):
+        return f"{indice * 10}.5"
+    if tipo_java == "boolean":
+        return "TRUE" if indice % 2 == 1 else "FALSE"
+    if tipo_java == "char":
+        return f"'{chr(64 + indice)}'"
+    if tipo_java == "LocalDate":
+        return f"DATE '2024-01-0{indice}'"
+    # tipo_java == "List<String>" u otro no reconocido: no se genera columna
+    # para esto (ver `_columnas_valores_propias`), no debería llegar acá.
+    return "NULL"
+
+
+def _valor_id_ejemplo(tipo_java: str, indice: int) -> str:
+    if tipo_java == "String":
+        return f"'ID{indice}'"
+    return str(indice)
+
+
+def _relaciones_fk_salientes(entidad: EntidadModelo) -> list:
+    """Relaciones propietarias que son una FK real en la tabla propia de
+    `entidad` (a diferencia de `manyToMany`, que vive en una tabla
+    intermedia y no condiciona el orden de inserción de `entidad`)."""
+    return [r for r in _relaciones_propietarias(entidad) if r.tipo in ("manyToOne", "oneToOne")]
+
+
+def _orden_insercion(entidades: list[EntidadModelo]) -> list[EntidadModelo] | None:
+    """Orden topológico (Kahn) según dependencias de herencia y de FK
+    ("hacia uno"). Una autorreferencia (`rel.entidad_relacionada` apunta a la
+    propia entidad, ej. "empleado.jefe -> Empleado") no cuenta como
+    dependencia: se resuelve con NULL/filas previas de la misma entidad, no
+    bloquea el orden. Devuelve `None` si hay una dependencia circular real
+    entre dos o más entidades distintas."""
+    nombres = {e.nombre_java for e in entidades}
+    dependencias: dict[str, set[str]] = {e.nombre_java: set() for e in entidades}
+    for entidad in entidades:
+        if entidad.extiende:
+            dependencias[entidad.nombre_java].add(entidad.extiende)
+        for rel in _relaciones_fk_salientes(entidad):
+            if rel.entidad_relacionada != entidad.nombre_java and rel.entidad_relacionada in nombres:
+                dependencias[entidad.nombre_java].add(rel.entidad_relacionada)
+
+    resueltas: list[EntidadModelo] = []
+    resueltas_nombres: set[str] = set()
+    pendientes = list(entidades)
+    while pendientes:
+        listas = [e for e in pendientes if dependencias[e.nombre_java] <= resueltas_nombres]
+        if not listas:
+            return None
+        resueltas.extend(listas)
+        resueltas_nombres.update(e.nombre_java for e in listas)
+        pendientes = [e for e in pendientes if e.nombre_java not in resueltas_nombres]
+    return resueltas
+
+
+def _cadena_herencia(entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]) -> list[EntidadModelo]:
+    """[raíz, ..., entidad]: las tablas donde hay que insertar una fila para
+    persistir una instancia de `entidad` bajo estrategia JOINED."""
+    cadena = [entidad]
+    actual = entidad
+    while actual.extiende:
+        actual = entidades_por_nombre[actual.extiende]
+        cadena.insert(0, actual)
+    return cadena
+
+
+def _insert_sql(tabla: str, columnas: list[str], valores: list[str]) -> str:
+    return f"INSERT INTO {tabla} ({', '.join(columnas)}) VALUES ({', '.join(valores)});"
+
+
+def _valor_fk(
+    entidad: EntidadModelo,
+    rel,
+    ids_por_entidad: dict[str, list[str]],
+    ids_propios_hasta_ahora: list[str],
+    indice: int,
+) -> str:
+    if rel.entidad_relacionada == entidad.nombre_java:
+        # Autorreferencia: la primera fila no tiene de dónde apuntar; las
+        # siguientes reutilizan un id ya insertado de la misma entidad.
+        if indice == 1 or not ids_propios_hasta_ahora:
+            return "NULL"
+        return ids_propios_hasta_ahora[(indice - 2) % len(ids_propios_hasta_ahora)]
+    ids_relacionados = ids_por_entidad.get(rel.entidad_relacionada)
+    if not ids_relacionados:
+        return "NULL"
+    return ids_relacionados[(indice - 1) % len(ids_relacionados)]
+
+
+def _columnas_valores_propias(
+    entidad: EntidadModelo,
+    ids_por_entidad: dict[str, list[str]],
+    ids_propios_hasta_ahora: list[str],
+    indice: int,
+) -> tuple[list[str], list[str]]:
+    columnas: list[str] = []
+    valores: list[str] = []
+    for campo in entidad.campos:
+        if campo.es_lista:
+            # `List<String>` no tiene `@ElementCollection` en la entidad
+            # generada (gap preexistente, ajeno a esta tarea): no existe
+            # como columna persistida, no se le genera valor de ejemplo.
+            continue
+        columnas.append(_nombre_columna(campo.nombre))
+        valores.append(_valor_ejemplo(campo.tipo_java, campo.nombre, indice))
+    for rel in _relaciones_fk_salientes(entidad):
+        columnas.append(_nombre_columna_fk(rel))
+        valores.append(_valor_fk(entidad, rel, ids_por_entidad, ids_propios_hasta_ahora, indice))
+    return columnas, valores
+
+
+def _generar_inserts_entidad(
+    entidad: EntidadModelo,
+    entidades_por_nombre: dict[str, EntidadModelo],
+    ids_por_entidad: dict[str, list[str]],
+    contador_por_tabla: dict[str, int],
+) -> list[str]:
+    cadena = _cadena_herencia(entidad, entidades_por_nombre)
+    raiz = cadena[0]
+    tabla_raiz = _nombre_tabla(raiz)
+    # Con herencia (>1 tabla) o con un id que el usuario definió a mano (no
+    # autogenerado), hace falta un id explícito e igual en todas las tablas
+    # de la cadena; si no, se deja que la propia tabla autoincremente.
+    con_id_explicito = len(cadena) > 1 or not raiz.campo_id_generado
+
+    if not con_id_explicito:
+        tabla = _nombre_tabla(entidad)
+        siguiente = contador_por_tabla.get(tabla, 1)
+        sentencias: list[str] = []
+        ids_fila: list[str] = []
+        for offset in range(3):
+            indice = offset + 1
+            columnas, valores = _columnas_valores_propias(entidad, ids_por_entidad, ids_fila, indice)
+            if columnas:
+                sentencias.append(_insert_sql(tabla, columnas, valores))
+            else:
+                sentencias.append(f"INSERT INTO {tabla} (id) VALUES (DEFAULT);")
+            ids_fila.append(str(siguiente + offset))
+        contador_por_tabla[tabla] = siguiente + 3
+        ids_por_entidad[entidad.nombre_java] = ids_fila
+        return sentencias
+
+    if raiz.campo_id_generado:
+        siguiente = contador_por_tabla.get(tabla_raiz, 1)
+        ids_nuevos = [str(siguiente + offset) for offset in range(3)]
+        contador_por_tabla[tabla_raiz] = siguiente + 3
+    else:
+        ids_nuevos = [_valor_id_ejemplo(raiz.campo_id_tipo, i) for i in range(1, 4)]
+
+    sentencias = []
+    ids_fila = []
+    for indice, id_actual in enumerate(ids_nuevos, start=1):
+        for nivel in cadena:
+            columnas, valores = _columnas_valores_propias(nivel, ids_por_entidad, ids_fila, indice)
+            sentencias.append(_insert_sql(_nombre_tabla(nivel), ["id"] + columnas, [id_actual] + valores))
+        ids_fila.append(id_actual)
+    ids_por_entidad[entidad.nombre_java] = ids_fila
+    return sentencias
+
+
+def _generar_inserts_join(entidad: EntidadModelo, rel, ids_por_entidad: dict[str, list[str]]) -> list[str]:
+    propios = ids_por_entidad.get(entidad.nombre_java) or []
+    otros = ids_por_entidad.get(rel.entidad_relacionada) or []
+    if not propios or not otros:
+        return []
+
+    tabla = _a_snake_case(rel.nombre)
+    propia_nombre = entidad.nombre_java[:1].lower() + entidad.nombre_java[1:]
+    otra_nombre = rel.entidad_relacionada[:1].lower() + rel.entidad_relacionada[1:]
+    col_propia = _a_snake_case(f"{propia_nombre}_id")
+    col_otra = _a_snake_case(f"{otra_nombre}_id")
+
+    # Desfasado 1 a propósito: cubre los ids de ambos lados sin repetir
+    # siempre la misma combinación "fila N con fila N".
+    n = max(len(propios), len(otros))
+    return [
+        _insert_sql(tabla, [col_propia, col_otra], [propios[i % len(propios)], otros[(i + 1) % len(otros)]])
+        for i in range(n)
+    ]
+
+
+def _data_sql(modelo: ModeloBackend, entidades_por_nombre: dict[str, EntidadModelo]) -> str | None:
+    orden = _orden_insercion(modelo.entidades)
+    if orden is None:
+        return None
+
+    ids_por_entidad: dict[str, list[str]] = {}
+    contador_por_tabla: dict[str, int] = {}
+    lineas: list[str] = ["-- Datos de ejemplo generados automáticamente (CU11)", ""]
+
+    for entidad in orden:
+        lineas.extend(_generar_inserts_entidad(entidad, entidades_por_nombre, ids_por_entidad, contador_por_tabla))
+        lineas.append("")
+
+    for entidad in modelo.entidades:
+        for rel in entidad.relaciones:
+            if rel.propietaria and rel.tipo == "manyToMany":
+                inserts_join = _generar_inserts_join(entidad, rel, ids_por_entidad)
+                if inserts_join:
+                    lineas.extend(inserts_join)
+                    lineas.append("")
+
+    return "\n".join(lineas).rstrip() + "\n"
 
 
 def generar_zip_backend(contenido: dict, nombre_proyecto: str) -> bytes:
@@ -659,11 +931,22 @@ def generar_zip_backend(contenido: dict, nombre_proyecto: str) -> bytes:
     base_java = "src/main/java/" + modelo.paquete.replace(".", "/")
     entidades_por_nombre = {e.nombre_java: e for e in modelo.entidades}
 
+    seed_sql = _data_sql(modelo, entidades_por_nombre)
+    nota_seed = None
+    if seed_sql is None:
+        nota_seed = (
+            "No se generó `data.sql` automáticamente: el diagrama tiene una dependencia circular entre "
+            "relaciones \"hacia uno\" (cada una obligatoria para insertar la otra), así que no existe un orden "
+            "de inserción válido. Cargá datos de ejemplo a mano si los necesitás."
+        )
+
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr("pom.xml", _pom_xml(modelo.paquete, artefacto))
         zip_file.writestr("src/main/resources/application.properties", _application_properties())
-        zip_file.writestr("README.md", _readme(artefacto, modelo.entidades))
+        if seed_sql is not None:
+            zip_file.writestr("src/main/resources/data.sql", seed_sql)
+        zip_file.writestr("README.md", _readme(artefacto, modelo.entidades, nota_seed))
 
         contenido_app, clase_app = _application_java(modelo.paquete, artefacto)
         zip_file.writestr(f"{base_java}/{clase_app}.java", contenido_app)
