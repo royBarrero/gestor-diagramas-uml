@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ConfirmModal from '../ConfirmModal/ConfirmModal'
+import { useSocketNotificaciones } from '../../hooks/useSocketNotificaciones'
 import { api } from '../../services/api'
 import styles from './MiembrosModal.module.css'
 
@@ -25,6 +26,12 @@ function MiembrosModal({ proyecto, onClose, onCambio }) {
   useEffect(() => {
     cargarMiembros()
   }, [])
+
+  useSocketNotificaciones({
+    miembro_agregado: (payload) => {
+      if (payload?.proyecto_id === proyecto.id) cargarMiembros()
+    },
+  })
 
   async function handleInvitar(event) {
     event.preventDefault()

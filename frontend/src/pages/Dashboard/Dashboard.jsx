@@ -6,6 +6,7 @@ import MiembrosModal from '../../components/MiembrosModal/MiembrosModal'
 import ProyectoFormModal from '../../components/ProyectoFormModal/ProyectoFormModal'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePendingInvitations } from '../../hooks/usePendingInvitations'
+import { useSocketNotificaciones } from '../../hooks/useSocketNotificaciones'
 import { api } from '../../services/api'
 import styles from './Dashboard.module.css'
 
@@ -30,6 +31,8 @@ function Dashboard() {
   useEffect(() => {
     cargarProyectos()
   }, [])
+
+  useSocketNotificaciones({ miembro_agregado: cargarProyectos })
 
   function handleGuardado() {
     setModalForm(null)

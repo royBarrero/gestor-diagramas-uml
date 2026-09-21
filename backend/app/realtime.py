@@ -23,6 +23,10 @@ def _room(diagrama_id: str) -> str:
     return f"diagrama_{diagrama_id}"
 
 
+def room_usuario(usuario_id: int) -> str:
+    return f"usuario_{usuario_id}"
+
+
 async def _emitir_colaboradores(room: str) -> None:
     vistos: set[int] = set()
     colaboradores = []
@@ -36,16 +40,16 @@ async def _emitir_colaboradores(room: str) -> None:
 @sio.event
 async def connect(sid, environ, auth):
     token = (auth or {}).get("token")
+    if not token:
+        raise ConnectionRefusedError("Falta token.")
+
     query = parse_qs(environ.get("QUERY_STRING", ""))
     diagrama_id = (query.get("diagramaId") or [None])[0]
-
-    if not token or not diagrama_id:
-        raise ConnectionRefusedError("Falta token o diagramaId.")
-
-    try:
-        diagrama_id = int(diagrama_id)
-    except ValueError:
-        raise ConnectionRefusedError("diagramaId inválido.")
+    if diagrama_id is not None:
+        try:
+            diagrama_id = int(diagrama_id)
+        except ValueError:
+            raise ConnectionRefusedError("diagramaId inválido.")
 
     db = SessionLocal()
     try:
@@ -53,21 +57,26 @@ async def connect(sid, environ, auth):
         if usuario is None:
             raise ConnectionRefusedError("Token inválido.")
 
-        diagrama = db.query(Diagrama).filter(Diagrama.id == diagrama_id).first()
-        if diagrama is None:
-            raise ConnectionRefusedError("El diagrama no existe.")
+        room = None
+        if diagrama_id is not None:
+            diagrama = db.query(Diagrama).filter(Diagrama.id == diagrama_id).first()
+            if diagrama is None:
+                raise ConnectionRefusedError("El diagrama no existe.")
 
-        proyecto = obtener_proyecto_o_404(diagrama.id_proyecto, db)
-        if rol_de_usuario_en_proyecto(proyecto, usuario, db) is None:
-            raise ConnectionRefusedError("No tenés acceso a este proyecto.")
+            proyecto = obtener_proyecto_o_404(diagrama.id_proyecto, db)
+            if rol_de_usuario_en_proyecto(proyecto, usuario, db) is None:
+                raise ConnectionRefusedError("No tenés acceso a este proyecto.")
+            room = _room(diagrama_id)
     finally:
         db.close()
 
-    room = _room(diagrama_id)
     await sio.save_session(sid, {"room": room, "usuario_id": usuario.id, "nombre": usuario.nombre})
-    await sio.enter_room(sid, room)
-    salas.setdefault(room, {})[sid] = {"id": usuario.id, "nombre": usuario.nombre, "claseId": None}
-    await _emitir_colaboradores(room)
+    await sio.enter_room(sid, room_usuario(usuario.id))
+
+    if room:
+        await sio.enter_room(sid, room)
+        salas.setdefault(room, {})[sid] = {"id": usuario.id, "nombre": usuario.nombre, "claseId": None}
+        await _emitir_colaboradores(room)
 
 
 @sio.event

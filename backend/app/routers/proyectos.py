@@ -13,6 +13,7 @@ from app.models.invitacion import Invitacion
 from app.models.miembro_proyecto import MiembroProyecto
 from app.models.proyecto import Proyecto
 from app.models.usuario import Usuario
+from app.realtime import room_usuario, sio
 from app.schemas.invitacion import InvitacionCrear, MiembroOut
 from app.schemas.proyecto import ProyectoConRolOut, ProyectoCrear, ProyectoEditar
 
@@ -217,7 +218,7 @@ def listar_miembros(
 
 
 @router.post("/{proyecto_id}/invitaciones", status_code=status.HTTP_201_CREATED)
-def invitar_miembro(
+async def invitar_miembro(
     proyecto_id: int,
     datos: InvitacionCrear,
     usuario_actual: Usuario = Depends(get_current_user),
@@ -263,6 +264,16 @@ def invitar_miembro(
         )
     )
     db.commit()
+
+    await sio.emit(
+        "invitacion_nueva",
+        {
+            "proyecto_id": proyecto.id,
+            "proyecto_nombre": proyecto.nombre,
+            "invitado_por": usuario_actual.nombre,
+        },
+        room=room_usuario(usuario_invitado.id),
+    )
 
     return {"mensaje": "Invitación enviada."}
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../services/api'
+import { useSocketNotificaciones } from './useSocketNotificaciones'
 
 export function usePendingInvitations() {
   const [invitaciones, setInvitaciones] = useState([])
@@ -15,6 +16,8 @@ export function usePendingInvitations() {
   useEffect(() => {
     recargar()
   }, [])
+
+  useSocketNotificaciones({ invitacion_nueva: recargar })
 
   return { invitaciones, cargando, recargar }
 }

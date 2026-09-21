@@ -40,6 +40,7 @@ NS_XMI = "http://schema.omg.org/spec/XMI/2.1"
 NS_UML = "http://schema.omg.org/spec/UML/2.1"
 XMI_TYPE = f"{{{NS_XMI}}}type"
 XMI_ID = f"{{{NS_XMI}}}id"
+XMI_IDREF = f"{{{NS_XMI}}}idref"
 
 ET.register_namespace("xmi", NS_XMI)
 ET.register_namespace("uml", NS_UML)
@@ -94,6 +95,152 @@ def _leer_multiplicidad(elem_end: ET.Element) -> str | None:
     if upper is None:
         upper = lower
     return lower if lower == upper else f"{lower}..{upper}"
+
+
+def _visibilidad_ea(valor: str | None) -> str:
+    return _VISIBILIDAD_DESDE_UML.get((valor or "").lower(), "publico")
+
+
+def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
+    """Lector alternativo para XMI real de Enterprise Architect: en vez de
+    resolver las referencias cruzadas por xmi:id/xmi:idref del <uml:Model>
+    formal (que EA no expone de la forma en que este módulo la espera), lee
+    el bloque propietario <xmi:Extension>, donde EA repite nombre y tipo de
+    cada atributo en texto plano y cada relación trae su source/target por
+    id directo. Se usa solo como fallback cuando el parser normal no
+    encontró ninguna clase.
+    """
+    elementos = extension.find("elements")
+    if elementos is None:
+        return None
+
+    ids_clases: set[str] = set()
+    nodes = []
+    for elem in elementos.findall("element"):
+        if elem.get(XMI_TYPE) != "uml:Class":
+            continue
+        clase_id = elem.get(XMI_IDREF)
+        nombre = elem.get("name")
+        if not clase_id or not nombre or clase_id in ids_clases:
+            continue
+        ids_clases.add(clase_id)
+
+        atributos = []
+        attrs_container = elem.find("attributes")
+        if attrs_container is not None:
+            for attr_elem in attrs_container.findall("attribute"):
+                props = attr_elem.find("properties")
+                atributos.append(
+                    {
+                        "id": attr_elem.get(XMI_IDREF) or f"{clase_id}-attr-{len(atributos)}",
+                        "visibilidad": _visibilidad_ea(attr_elem.get("scope")),
+                        "tipo": props.get("type", "") if props is not None else "",
+                        "texto": attr_elem.get("name", ""),
+                    }
+                )
+
+        metodos = []
+        ops_container = elem.find("operations")
+        if ops_container is not None:
+            for op_elem in ops_container.findall("operation"):
+                metodos.append(
+                    {
+                        "id": op_elem.get(XMI_IDREF) or f"{clase_id}-op-{len(metodos)}",
+                        "visibilidad": _visibilidad_ea(op_elem.get("scope")),
+                        "tipo": "",
+                        "texto": op_elem.get("name", ""),
+                    }
+                )
+
+        columna, fila = len(nodes) % 4, len(nodes) // 4
+        nodes.append(
+            {
+                "id": clase_id,
+                "type": "clase",
+                "position": {"x": 80 + columna * 260, "y": 80 + fila * 220},
+                "data": {"nombre": nombre, "atributos": atributos, "metodos": metodos},
+            }
+        )
+
+    if not nodes:
+        return None
+
+    edges = []
+    ids_edges: set[str] = set()
+    conectores = extension.find("connectors")
+    if conectores is not None:
+        for conn in conectores.findall("connector"):
+            source_el, target_el = conn.find("source"), conn.find("target")
+            if source_el is None or target_el is None:
+                continue
+            source_id, target_id = source_el.get(XMI_IDREF), target_el.get(XMI_IDREF)
+            if source_id not in ids_clases or target_id not in ids_clases:
+                continue
+
+            props = conn.find("properties")
+            ea_type = props.get("ea_type") if props is not None else None
+
+            edge_id = conn.get(XMI_IDREF) or f"rel-{len(edges)}"
+            if edge_id in ids_edges:
+                edge_id = f"{edge_id}-{len(edges)}"
+            ids_edges.add(edge_id)
+
+            if ea_type == "Generalization":
+                edges.append(
+                    {
+                        "id": edge_id,
+                        "source": source_id,
+                        "target": target_id,
+                        "type": "relacion",
+                        "data": {
+                            "tipo": "herencia",
+                            "multiplicidadOrigen": None,
+                            "multiplicidadDestino": None,
+                            "nombre": None,
+                            "estiloLinea": "recta",
+                        },
+                    }
+                )
+                continue
+
+            if ea_type != "Association":
+                continue
+
+            source_tipo, target_tipo = source_el.find("type"), target_el.find("type")
+            agg_source = source_tipo.get("aggregation") if source_tipo is not None else "none"
+            agg_target = target_tipo.get("aggregation") if target_tipo is not None else "none"
+            mult_source = source_tipo.get("multiplicity") if source_tipo is not None else None
+            mult_target = target_tipo.get("multiplicity") if target_tipo is not None else None
+
+            # mismo criterio que el exportador: el rombo va del lado "todo" (origen);
+            # el extremo "parte" es el que trae aggregation y pasa a ser destino.
+            if agg_target in ("composite", "shared"):
+                tipo = "composicion" if agg_target == "composite" else "agregacion"
+                origen_id, destino_id, mult_o, mult_d = source_id, target_id, mult_source, mult_target
+            elif agg_source in ("composite", "shared"):
+                tipo = "composicion" if agg_source == "composite" else "agregacion"
+                origen_id, destino_id, mult_o, mult_d = target_id, source_id, mult_target, mult_source
+            else:
+                tipo, origen_id, destino_id = "asociacion", source_id, target_id
+                mult_o, mult_d = mult_source, mult_target
+
+            edges.append(
+                {
+                    "id": edge_id,
+                    "source": origen_id,
+                    "target": destino_id,
+                    "type": "relacion",
+                    "data": {
+                        "tipo": tipo,
+                        "multiplicidadOrigen": mult_o,
+                        "multiplicidadDestino": mult_d,
+                        "nombre": props.get("name") if props is not None else None,
+                        "estiloLinea": "recta",
+                    },
+                }
+            )
+
+    return validar_contenido({"nodes": nodes, "edges": edges})
 
 
 def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
@@ -328,5 +475,12 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                 "estiloLinea": "recta",
             },
         )
+
+    if not nodes:
+        extension = xmi.find(f"{{{NS_XMI}}}Extension")
+        if extension is not None:
+            resultado_ea = _contenido_desde_extension_ea(extension)
+            if resultado_ea is not None:
+                return resultado_ea
 
     return validar_contenido({"nodes": nodes, "edges": edges})

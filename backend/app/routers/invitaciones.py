@@ -9,6 +9,7 @@ from app.models.invitacion import Invitacion
 from app.models.miembro_proyecto import MiembroProyecto
 from app.models.proyecto import Proyecto
 from app.models.usuario import Usuario
+from app.realtime import room_usuario, sio
 from app.schemas.invitacion import InvitacionOut
 
 router = APIRouter(prefix="/invitaciones", tags=["invitaciones"])
@@ -61,17 +62,18 @@ def listar_pendientes(
 
 
 @router.post("/{invitacion_id}/aceptar", status_code=status.HTTP_204_NO_CONTENT)
-def aceptar_invitacion(
+async def aceptar_invitacion(
     invitacion_id: int,
     usuario_actual: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     invitacion = _obtener_invitacion_propia_o_404(invitacion_id, usuario_actual, db)
+    id_proyecto = invitacion.id_proyecto
 
     ya_es_miembro = (
         db.query(MiembroProyecto)
         .filter(
-            MiembroProyecto.id_proyecto == invitacion.id_proyecto,
+            MiembroProyecto.id_proyecto == id_proyecto,
             MiembroProyecto.id_usuario == usuario_actual.id,
         )
         .first()
@@ -79,7 +81,7 @@ def aceptar_invitacion(
     if ya_es_miembro is None:
         db.add(
             MiembroProyecto(
-                id_proyecto=invitacion.id_proyecto,
+                id_proyecto=id_proyecto,
                 id_usuario=usuario_actual.id,
                 rol="colaborador",
             )
@@ -87,6 +89,19 @@ def aceptar_invitacion(
 
     db.delete(invitacion)
     db.commit()
+
+    ids_miembros = [
+        fila[0]
+        for fila in db.query(MiembroProyecto.id_usuario)
+        .filter(MiembroProyecto.id_proyecto == id_proyecto)
+        .all()
+    ]
+    for id_usuario in ids_miembros:
+        await sio.emit(
+            "miembro_agregado",
+            {"proyecto_id": id_proyecto, "total_miembros": len(ids_miembros)},
+            room=room_usuario(id_usuario),
+        )
 
 
 @router.post("/{invitacion_id}/rechazar", status_code=status.HTTP_204_NO_CONTENT)
