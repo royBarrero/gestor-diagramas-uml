@@ -1,0 +1,13 @@
+# Reverse proxy con HTTPS automático (Let's Encrypt) para el stack.
+# Sin dominio propio, se puede usar sslip.io: cualquier subdominio de
+# "<algo>.<ip-con-guiones>.sslip.io" resuelve a esa IP. Ej: IP 203.0.113.5 ->
+# app.203-0-113-5.sslip.io / api.203-0-113-5.sslip.io. Reemplazá los hosts de
+# abajo por los tuyos (o por tu dominio real, si tenés uno).
+
+app.SUBDOMINIO.sslip.io {
+    reverse_proxy frontend:80
+}
+
+api.SUBDOMINIO.sslip.io {
+    reverse_proxy backend:8000
+}

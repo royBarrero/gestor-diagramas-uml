@@ -46,5 +46,23 @@ services:
     depends_on:
       - backend
 
+  proxy:
+    # Reverse proxy con HTTPS automático (Let's Encrypt) delante de
+    # frontend y backend. Ver Caddyfile y DEPLOY.md. Solo hace falta para
+    # exponer el stack públicamente; en desarrollo local no se usa.
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

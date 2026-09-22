@@ -31,6 +31,15 @@ export function useComandoVoz(diagramaId, { onAplicado }) {
   )
 
   const iniciarGrabacion = useCallback(async () => {
+    // navigator.mediaDevices solo existe en contextos seguros (HTTPS o
+    // localhost). Sin esto, accederlo revienta con un TypeError que un catch
+    // genérico confundiría con un permiso denegado.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setEstado('error')
+      setMensaje('El comando de voz requiere una conexión segura (HTTPS). Este sitio se está sirviendo sin HTTPS.')
+      return
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
@@ -48,9 +57,15 @@ export function useComandoVoz(diagramaId, { onAplicado }) {
       mediaRecorderRef.current = mediaRecorder
       setMensaje(null)
       setEstado('grabando')
-    } catch {
+    } catch (error) {
       setEstado('error')
-      setMensaje('No se pudo acceder al micrófono. Revisá los permisos del navegador.')
+      if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+        setMensaje('No se pudo acceder al micrófono. Revisá los permisos del navegador.')
+      } else if (error.name === 'NotFoundError') {
+        setMensaje('No se encontró ningún micrófono disponible.')
+      } else {
+        setMensaje('No se pudo acceder al micrófono. Intentá de nuevo.')
+      }
     }
   }, [enviarAudio])
 
