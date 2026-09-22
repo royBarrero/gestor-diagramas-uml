@@ -3,7 +3,7 @@ import { io } from 'socket.io-client'
 import { api } from '../services/api'
 import { useDebouncedEffect } from './useDebouncedEffect'
 
-export const SOCKET_URL = 'http://localhost:8000'
+export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export function useColaboracion(diagramaId, { nodes, edges, reemplazarDiagrama, seleccionId }) {
   const [colaboradores, setColaboradores] = useState([])

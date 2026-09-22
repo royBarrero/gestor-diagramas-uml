@@ -1,0 +1,50 @@
+# Levanta el stack completo (db + backend + frontend) para probarlo local
+# antes de llevarlo a un VPS. Ver DEPLOY.md para los pasos de despliegue manual.
+#
+# El backend corre con un solo worker de uvicorn: el roster de colaboradores
+# en tiempo real (app/realtime.py) vive en memoria de un solo proceso, así
+# que no se pueden levantar varias réplicas del servicio "backend" sin antes
+# mover ese estado a algo compartido (por ejemplo Redis) — fuera de alcance
+# de este preparado.
+
+services:
+  db:
+    # Contenedor de Postgres solo para probar el stack completo localmente.
+    # En producción podés usar un Postgres administrado (RDS, Supabase, etc.):
+    # en ese caso no levantás este servicio y apuntás DATABASE_URL al host externo.
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gestor
+      POSTGRES_PASSWORD: gestor
+      POSTGRES_DB: gestor_diagramas_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestor -d gestor_diagramas_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
