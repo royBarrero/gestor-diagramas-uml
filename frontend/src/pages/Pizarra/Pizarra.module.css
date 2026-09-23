@@ -103,6 +103,16 @@
   max-width: 260px;
 }
 
+/* El estado del comando de voz incluye la transcripción: se corta a 3 líneas
+   (el texto completo queda en el title). */
+.estadoVozLargo {
+  max-width: 360px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .cuerpo {
   flex: 1;
   display: flex;

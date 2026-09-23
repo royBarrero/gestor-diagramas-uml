@@ -1,16 +1,32 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { TIPOS_RELACION } from '../../constants/tiposRelacion'
+import { usePizarra } from '../../contexts/PizarraContext'
 import styles from './MultiplicidadModal.module.css'
 
-// Edita una relación ya existente (tipo, multiplicidad, nombre) — se dispara
-// desde el mini-menú de RelacionEdge.jsx cuando el edge está seleccionado.
+// Edita una relación ya existente (tipo, multiplicidad, nombre, clase de
+// asociación) — se dispara desde el mini-menú de RelacionEdge.jsx cuando el
+// edge está seleccionado.
 function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
+  const { nodes, edges } = usePizarra()
   const datos = relacion.data ?? {}
   const [tipo, setTipo] = useState(datos.tipo ?? 'asociacion')
   const [origen, setOrigen] = useState(datos.multiplicidadOrigen ?? '')
   const [destino, setDestino] = useState(datos.multiplicidadDestino ?? '')
   const [nombre, setNombre] = useState(datos.nombre ?? '')
+  const [claseAsociacion, setClaseAsociacion] = useState(() =>
+    nodes.some((n) => n.id === datos.claseAsociacion) ? datos.claseAsociacion : ''
+  )
+
+  // Candidatas a clase de asociación: ni los extremos de esta relación ni una
+  // clase que ya sea clase de asociación de otra relación (en UML cada clase de
+  // asociación pertenece a una sola asociación).
+  const usadasEnOtras = new Set(
+    edges.filter((e) => e.id !== relacion.id && e.data?.claseAsociacion).map((e) => e.data.claseAsociacion)
+  )
+  const candidatas = nodes.filter(
+    (n) => n.id !== relacion.source && n.id !== relacion.target && !usadasEnOtras.has(n.id)
+  )
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -19,6 +35,7 @@ function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
       multiplicidadOrigen: origen.trim() || null,
       multiplicidadDestino: destino.trim() || null,
       nombre: nombre.trim() || undefined,
+      claseAsociacion: (tipo === 'asociacion' && claseAsociacion) || null,
     })
   }
 
@@ -73,6 +90,27 @@ function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
             value={nombre}
             onChange={(event) => setNombre(event.target.value)}
           />
+
+          {tipo === 'asociacion' && (
+            <>
+              <label className={styles.label} htmlFor="edit-rel-clase-asociacion">
+                Clase de asociación (opcional)
+              </label>
+              <select
+                id="edit-rel-clase-asociacion"
+                className={styles.input}
+                value={claseAsociacion}
+                onChange={(event) => setClaseAsociacion(event.target.value)}
+              >
+                <option value="">Ninguna</option>
+                {candidatas.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.data.nombre}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           <div className={styles.acciones}>
             <button type="button" className={styles.botonCancelar} onClick={onCancelar}>

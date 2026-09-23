@@ -63,7 +63,12 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
     reemplazarDiagrama,
     seleccionId,
   })
-  const { estado: estadoVoz, mensaje: mensajeVoz, alternarGrabacion } = useComandoVoz(diagramaId, {
+  const {
+    estado: estadoVoz,
+    mensaje: mensajeVoz,
+    transcripcion: transcripcionVoz,
+    alternarGrabacion,
+  } = useComandoVoz(diagramaId, {
     onAplicado: reemplazarDiagrama,
   })
   const { estado: estadoFoto, mensaje: mensajeFoto, subirImagen } = useDigitalizacionImagen(diagramaId, {
@@ -174,10 +179,16 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
           </button>
 
           {estadoVoz !== 'inactivo' && estadoVoz !== 'grabando' && (
-            <span className={styles.estadoVoz}>
+            <span
+              className={`${styles.estadoVoz} ${styles.estadoVozLargo}`}
+              title={transcripcionVoz ? `${mensajeVoz ?? ''}\nEscuché: "${transcripcionVoz}"` : undefined}
+            >
               {estadoVoz === 'procesando' && 'Procesando comando...'}
-              {estadoVoz === 'aplicado' && 'Comando aplicado ✓'}
+              {estadoVoz === 'aplicado' && `${mensajeVoz} ✓`}
               {estadoVoz === 'no_entendido' && `No entendí el comando: ${mensajeVoz}`}
+              {(estadoVoz === 'aplicado' || estadoVoz === 'no_entendido') &&
+                transcripcionVoz &&
+                ` · Escuché: "${transcripcionVoz}"`}
               {estadoVoz === 'error_ia' && 'El asistente de voz no está disponible ahora.'}
               {estadoVoz === 'error' && mensajeVoz}
             </span>

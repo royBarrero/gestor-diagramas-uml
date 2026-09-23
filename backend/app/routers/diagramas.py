@@ -112,15 +112,20 @@ async def procesar_comando_voz(
     audio_bytes = await audio.read()
 
     try:
-        texto = servicio_voz.transcribir_audio(audio_bytes, audio.filename or "comando.webm")
-        accion = servicio_voz.interpretar_comando(texto, diagrama.contenido.get("nodes", []))
+        texto = servicio_voz.transcribir_audio(audio_bytes, audio.filename or "comando.webm", diagrama.contenido)
+        resultado = servicio_voz.interpretar_comando(texto, diagrama.contenido)
     except servicio_voz.ServicioIANoDisponibleError as exc:
         return ComandoVozOut(estado="error_ia", mensaje=str(exc))
 
-    try:
-        nuevo_contenido = servicio_voz.aplicar_accion(diagrama.contenido, accion)
-    except servicio_voz.ComandoNoInterpretadoError as exc:
-        return ComandoVozOut(estado="no_entendido", mensaje=str(exc), transcripcion=texto)
+    nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(diagrama.contenido, resultado)
+    if aplicadas == 0:
+        return ComandoVozOut(estado="no_entendido", mensaje=" ".join(errores), transcripcion=texto)
+
+    if errores:
+        total = aplicadas + len(errores)
+        mensaje = f"Se aplicaron {aplicadas} de {total} acciones. {' '.join(errores)}"
+    else:
+        mensaje = "Comando aplicado." if aplicadas == 1 else f"Se aplicaron {aplicadas} acciones."
 
     diagrama.contenido = nuevo_contenido
     db.commit()
@@ -128,7 +133,7 @@ async def procesar_comando_voz(
 
     await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
 
-    return ComandoVozOut(estado="aplicado", mensaje="Comando aplicado.", contenido=nuevo_contenido, transcripcion=texto)
+    return ComandoVozOut(estado="aplicado", mensaje=mensaje, contenido=nuevo_contenido, transcripcion=texto)
 
 
 @router.post("/{diagrama_id}/digitalizar-imagen", response_model=DigitalizacionOut)

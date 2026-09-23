@@ -132,9 +132,19 @@ function flechaPuntos(tipX, tipY, angulo) {
   return `${baseX + dx},${baseY - dy} ${tipX},${tipY} ${baseX - dx},${baseY + dy}`
 }
 
+// Punto donde la línea desde (px, py) hacia el centro del nodo cruza su borde.
+// Reutiliza interseccionConBorde tratando el punto como un "nodo" de tamaño 0.
+function interseccionConPunto(nodo, px, py) {
+  const punto = { measured: { width: 0, height: 0 }, internals: { positionAbsolute: { x: px, y: py } } }
+  return interseccionConBorde(nodo, punto)
+}
+
 function RelacionEdge({ id, source, target, data, selected }) {
   const nodoOrigen = useInternalNode(source)
   const nodoDestino = useInternalNode(target)
+  // Clase de asociación (UML): se dibuja como punteada desde el medio de la
+  // relación hasta la clase. Si el nodo ya no existe, simplemente no se dibuja.
+  const nodoAsociacion = useInternalNode(data?.claseAsociacion ?? '')
   const { cambiarEstiloLinea, iniciarEdicionRelacion } = usePizarra()
 
   if (!nodoOrigen || !nodoDestino) return null
@@ -210,9 +220,23 @@ function RelacionEdge({ id, source, target, data, selected }) {
     y: labelNombreY,
   }
 
+  const bordeAsociacion = nodoAsociacion?.measured?.width
+    ? interseccionConPunto(nodoAsociacion, labelNombreX, labelNombreY)
+    : null
+
   return (
     <>
       <BaseEdge path={path} style={trazoEstilo} />
+
+      {bordeAsociacion && (
+        <path
+          d={`M ${labelNombreX},${labelNombreY} L ${bordeAsociacion.x},${bordeAsociacion.y}`}
+          fill="none"
+          stroke="var(--text-muted)"
+          strokeWidth={1.5}
+          strokeDasharray="6 4"
+        />
+      )}
 
       {tipo === 'dependencia' && (
         <polyline

@@ -73,6 +73,21 @@ Si más adelante cambiás los modelos, vas a necesitar una estrategia de migraci
 5. Probar un endpoint de generación de código (CU11/CU12) y confirmar que descarga el zip correctamente.
 6. Probar CU08 (comando de voz): el navegador debe pedir permiso de micrófono (prompt nativo), no mostrar directamente el error de "revisá los permisos".
 
+## 5.1 Actualizar una instalación existente
+
+Para llevar cambios nuevos a un servidor que ya está andando (no hace falta repetir los pasos 2 y 4):
+
+```bash
+git pull
+VITE_API_URL=https://api.<ip-con-guiones>.sslip.io docker compose up -d --build backend frontend
+docker compose ps   # confirmar que backend y frontend quedaron "running"
+```
+
+- Usá el mismo `VITE_API_URL` que en la instalación original (ver sección 2): se resuelve al buildear el frontend.
+- `--build` reinstala `backend/requirements.txt`, así que las dependencias nuevas (ej. `pillow`, que usa CU09) se instalan solas.
+- No hay migraciones de base de datos: el diagrama (clases, relaciones, clases de asociación) vive en la columna JSONB `contenido`, así que los cambios de su estructura no requieren tocar tablas. Solo habría que volver a correr el paso 4 si se agregan tablas nuevas.
+- La `OPENAI_API_KEY` de `backend/.env` debe tener acceso a los modelos que usa el backend: `gpt-4.1` (foto CU09 e interpretación de voz CU08), `gpt-4o-transcribe` (transcripción de voz, con `whisper-1` como respaldo automático) y `gpt-4o-mini` (agente CU13).
+
 ## 6. Lo que queda fuera de este preparado (a resolver manualmente)
 
 - **Dominio propio**: si no usás sslip.io, configurar el DNS apuntando a la IP del VPS.
@@ -87,4 +102,5 @@ Si más adelante cambiás los modelos, vas a necesitar una estrategia de migraci
 - **El frontend no puede hablar con el backend** (errores de red en la consola del navegador): la causa más común es `VITE_API_URL` mal seteado al buildear el frontend, o `CORS_ORIGINS` en `backend/.env` sin el dominio real desde el que se sirve el frontend.
 - **El backend no arranca / no conecta a la base**: si usás el Postgres del compose, confirmar que `DATABASE_URL` usa el host `db`, no `localhost`.
 - **CU08 (voz) falla con "revisá los permisos del navegador" sin que el navegador llegue a pedir permiso**: el sitio se está sirviendo por HTTP, no HTTPS. Ver sección 2.1 — `getUserMedia` no existe en contextos no seguros.
+- **CU08/CU09 responden "servicio no disponible" de forma intermitente**: revisar `docker compose logs backend`; si aparece `429 rate_limit_exceeded`, es el límite de tokens por minuto de la cuenta de OpenAI (según el tier de la cuenta; ej. 30.000 TPM para `gpt-4.1`). Un comando de voz usa ~1.500 tokens y una foto bastante más (se envían la imagen completa y 4 recortes ampliados), así que se alcanza solo con muchos pedidos seguidos — esperar un minuto o subir el tier en platform.openai.com.
 - **`proxy` no consigue el certificado Let's Encrypt** (ver `docker compose logs proxy`): confirmar que el `Caddyfile` tiene el host real (no quedó `SUBDOMINIO` sin reemplazar) y que los puertos 80/443 están efectivamente abiertos y llegan al VPS (firewall del proveedor + firewall del SO).

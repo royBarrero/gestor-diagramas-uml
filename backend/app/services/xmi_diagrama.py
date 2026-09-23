@@ -2,10 +2,12 @@
 (el estándar que entiende Enterprise Architect), a diferencia del JSON de
 `exportacion_diagrama.py` que es el formato propio del proyecto.
 
-No hay un archivo de referencia real exportado desde Enterprise Architect
-contra el cual validar esto, así que el mapeo sigue el estándar UML2 tal
-como lo documenta el OMG, con supuestos razonables donde el metamodelo no
-alcanza a cubrir lo que modela el diagrama:
+El mapeo sigue el estándar UML2 del OMG, con la forma concreta calcada de un
+XMI real exportado por Enterprise Architect: asociaciones con `memberEnd`,
+`association` en cada `ownedEnd` y los tipos como hijo `<type xmi:idref>`
+(sin eso EA importa las asociaciones sueltas, sin conectar a las clases), y
+el "ilimitado" de la multiplicidad como `-1`. Supuestos donde el metamodelo
+no alcanza a cubrir lo que modela el diagrama:
 
 - Las posiciones (x, y) de las clases en el lienzo NO viajan en el XMI: no
   son parte del metamodelo semántico de UML (en Enterprise Architect viven
@@ -29,6 +31,10 @@ alcanza a cubrir lo que modela el diagrama:
   con `general` apuntando al id de la clase `target` (superclase) — mismo
   criterio que ya usa `RelacionEdge.jsx` para dibujar el triángulo en el
   extremo `target`.
+- Clase de asociación (`data.claseAsociacion` de una relación): se exporta
+  como un único `uml:AssociationClass` con el id y nombre de la clase, sus
+  atributos/métodos y los extremos de la asociación — no como Class +
+  Association por separado.
 """
 
 import re
@@ -79,8 +85,9 @@ def _agregar_multiplicidad(elem_end: ET.Element, multiplicidad: str | None) -> N
     lower_elem.set(XMI_TYPE, "uml:LiteralInteger")
     lower_elem.set("value", lower)
     upper_elem = ET.SubElement(elem_end, "upperValue")
+    # EA escribe el "ilimitado" como -1, no como "*".
     upper_elem.set(XMI_TYPE, "uml:LiteralUnlimitedNatural" if upper == "*" else "uml:LiteralInteger")
-    upper_elem.set("value", upper)
+    upper_elem.set("value", "-1" if upper == "*" else upper)
 
 
 def _leer_multiplicidad(elem_end: ET.Element) -> str | None:
@@ -88,6 +95,8 @@ def _leer_multiplicidad(elem_end: ET.Element) -> str | None:
     upper_elem = elem_end.find("upperValue")
     lower = lower_elem.get("value") if lower_elem is not None else None
     upper = upper_elem.get("value") if upper_elem is not None else None
+    if upper == "-1":
+        upper = "*"
     if lower is None and upper is None:
         return None
     if lower is None:
@@ -95,6 +104,55 @@ def _leer_multiplicidad(elem_end: ET.Element) -> str | None:
     if upper is None:
         upper = lower
     return lower if lower == upper else f"{lower}..{upper}"
+
+
+def _agregar_ref_tipo(elem: ET.Element, idref: str) -> None:
+    """Tipo de un atributo o extremo como hijo <type xmi:idref>, como lo
+    escribe EA (con el atributo plano `type="..."` EA no resuelve la
+    referencia y deja las asociaciones sin clases en sus extremos)."""
+    ET.SubElement(elem, "type").set(XMI_IDREF, idref)
+
+
+def _ref_tipo(elem: ET.Element) -> str | None:
+    """Lee el tipo en cualquiera de las dos formas: hijo <type xmi:idref>
+    (formato actual, igual que EA) o atributo `type` (archivos exportados
+    antes de este cambio)."""
+    hijo = elem.find("type")
+    if hijo is not None and hijo.get(XMI_IDREF):
+        return hijo.get(XMI_IDREF)
+    return elem.get("type")
+
+
+def _agregar_extremos(assoc_elem: ET.Element, edge: dict) -> None:
+    """memberEnd + ownedEnd de una asociación (o del lado asociación de una
+    AssociationClass), con la forma exacta que usa EA: sin los memberEnd ni
+    el atributo `association` en cada extremo, EA importa la asociación
+    suelta, sin conectar a ninguna clase."""
+    data, tipo, assoc_id = edge["data"], edge["data"]["tipo"], assoc_elem.get(XMI_ID)
+    agregacion_parte = {"agregacion": "shared", "composicion": "composite"}.get(tipo, "none")
+    extremos = [
+        (f"{edge['id']}-origen", edge["source"], "none", data["multiplicidadOrigen"]),
+        (f"{edge['id']}-destino", edge["target"], agregacion_parte, data["multiplicidadDestino"]),
+    ]
+    for extremo_id, *_ in extremos:
+        ET.SubElement(assoc_elem, "memberEnd").set(XMI_IDREF, extremo_id)
+    for extremo_id, clase_id, agregacion, multiplicidad in extremos:
+        extremo = ET.SubElement(assoc_elem, "ownedEnd")
+        extremo.set(XMI_TYPE, "uml:Property")
+        extremo.set(XMI_ID, extremo_id)
+        extremo.set("association", assoc_id)
+        extremo.set("aggregation", agregacion)
+        _agregar_ref_tipo(extremo, clase_id)
+        _agregar_multiplicidad(extremo, multiplicidad)
+
+
+def _simplificar_multiplicidad(texto: str | None) -> str | None:
+    """EA escribe '1' como '1..1' en su extensión; se deja como '1' (mismo
+    valor en UML) para que se vea igual que antes de pasar por EA."""
+    if not texto:
+        return texto
+    partes = texto.split("..")
+    return partes[0] if len(partes) == 2 and partes[0] == partes[1] else texto
 
 
 def _visibilidad_ea(valor: str | None) -> str:
@@ -117,7 +175,7 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
     ids_clases: set[str] = set()
     nodes = []
     for elem in elementos.findall("element"):
-        if elem.get(XMI_TYPE) != "uml:Class":
+        if elem.get(XMI_TYPE) not in ("uml:Class", "uml:AssociationClass"):
             continue
         clase_id = elem.get(XMI_IDREF)
         nombre = elem.get("name")
@@ -209,8 +267,8 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
             source_tipo, target_tipo = source_el.find("type"), target_el.find("type")
             agg_source = source_tipo.get("aggregation") if source_tipo is not None else "none"
             agg_target = target_tipo.get("aggregation") if target_tipo is not None else "none"
-            mult_source = source_tipo.get("multiplicity") if source_tipo is not None else None
-            mult_target = target_tipo.get("multiplicity") if target_tipo is not None else None
+            mult_source = _simplificar_multiplicidad(source_tipo.get("multiplicity") if source_tipo is not None else None)
+            mult_target = _simplificar_multiplicidad(target_tipo.get("multiplicity") if target_tipo is not None else None)
 
             # mismo criterio que el exportador: el rombo va del lado "todo" (origen);
             # el extremo "parte" es el que trae aggregation y pasa a ser destino.
@@ -224,6 +282,12 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
                 tipo, origen_id, destino_id = "asociacion", source_id, target_id
                 mult_o, mult_d = mult_source, mult_target
 
+            # EA guarda la clase de asociación en el conector de la asociación,
+            # no en la clase: <extendedProperties associationclass="EAID_...">.
+            # validar_contenido descarta la referencia si no es válida.
+            extendidas = conn.find("extendedProperties")
+            clase_asociacion = extendidas.get("associationclass") if extendidas is not None else None
+
             edges.append(
                 {
                     "id": edge_id,
@@ -236,6 +300,7 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
                         "multiplicidadDestino": mult_d,
                         "nombre": props.get("name") if props is not None else None,
                         "estiloLinea": "recta",
+                        "claseAsociacion": clase_asociacion,
                     },
                 }
             )
@@ -260,10 +325,17 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             tipos_primitivos[nombre_tipo] = f"tipo-{_slug(nombre_tipo)}"
         return tipos_primitivos[nombre_tipo]
 
+    # clase de asociación (id de nodo) -> la relación de la que cuelga.
+    # validar_contenido ya garantiza que cada clase se usa en una sola relación.
+    relacion_de_clase_asociacion = {
+        e["data"]["claseAsociacion"]: e for e in edges if e["data"].get("claseAsociacion")
+    }
+
     elementos_clase: dict[str, ET.Element] = {}
     for node in nodes:
         clase = ET.SubElement(modelo, "packagedElement")
-        clase.set(XMI_TYPE, "uml:Class")
+        es_clase_asociacion = node["id"] in relacion_de_clase_asociacion
+        clase.set(XMI_TYPE, "uml:AssociationClass" if es_clase_asociacion else "uml:Class")
         clase.set(XMI_ID, node["id"])
         clase.set("name", node["data"]["nombre"])
         elementos_clase[node["id"]] = clase
@@ -275,7 +347,7 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             attr_elem.set("name", atributo["texto"])
             attr_elem.set("visibility", _VISIBILIDAD_A_UML[atributo["visibilidad"]])
             if atributo["tipo"]:
-                attr_elem.set("type", id_tipo_primitivo(atributo["tipo"]))
+                _agregar_ref_tipo(attr_elem, id_tipo_primitivo(atributo["tipo"]))
 
         for metodo in node["data"]["metodos"]:
             op_elem = ET.SubElement(clase, "ownedOperation")
@@ -312,25 +384,19 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             dep_elem.set("supplier", destino_id)
             continue
 
+        if data.get("claseAsociacion"):
+            # La AssociationClass es a la vez la clase y la asociación: sus
+            # extremos van dentro del mismo elemento (el nombre ya es el de la
+            # clase, así que el nombre de la relación no viaja).
+            _agregar_extremos(elementos_clase[data["claseAsociacion"]], edge)
+            continue
+
         assoc_elem = ET.SubElement(modelo, "packagedElement")
         assoc_elem.set(XMI_TYPE, "uml:Association")
         assoc_elem.set(XMI_ID, edge["id"])
         if data["nombre"]:
             assoc_elem.set("name", data["nombre"])
-
-        extremo_origen = ET.SubElement(assoc_elem, "ownedEnd")
-        extremo_origen.set(XMI_TYPE, "uml:Property")
-        extremo_origen.set(XMI_ID, f"{edge['id']}-origen")
-        extremo_origen.set("type", origen_id)
-        _agregar_multiplicidad(extremo_origen, data["multiplicidadOrigen"])
-
-        extremo_destino = ET.SubElement(assoc_elem, "ownedEnd")
-        extremo_destino.set(XMI_TYPE, "uml:Property")
-        extremo_destino.set(XMI_ID, f"{edge['id']}-destino")
-        extremo_destino.set("type", destino_id)
-        if tipo in ("agregacion", "composicion"):
-            extremo_destino.set("aggregation", "composite" if tipo == "composicion" else "shared")
-        _agregar_multiplicidad(extremo_destino, data["multiplicidadDestino"])
+        _agregar_extremos(assoc_elem, edge)
 
     ET.indent(xmi, space="  ")
     return ET.tostring(xmi, encoding="unicode", xml_declaration=True)
@@ -356,7 +422,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
     ids_nodos = set()
     generalizaciones = []  # (edge_id, origen_id, destino_id)
     for elem in modelo.findall("packagedElement"):
-        if elem.get(XMI_TYPE) != "uml:Class":
+        if elem.get(XMI_TYPE) not in ("uml:Class", "uml:AssociationClass"):
             continue
         clase_id = elem.get(XMI_ID)
         nombre = elem.get("name")
@@ -373,7 +439,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                 {
                     "id": attr_elem.get(XMI_ID) or f"{clase_id}-attr-{len(atributos)}",
                     "visibilidad": visibilidad,
-                    "tipo": tipos_primitivos.get(attr_elem.get("type"), ""),
+                    "tipo": tipos_primitivos.get(_ref_tipo(attr_elem), ""),
                     "texto": attr_elem.get("name", ""),
                 }
             )
@@ -447,12 +513,33 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
             )
             continue
 
-        if tipo_xmi != "uml:Association":
+        if tipo_xmi not in ("uml:Association", "uml:AssociationClass"):
             continue
 
         extremos = elem.findall("ownedEnd")
         if len(extremos) != 2:
             raise ArchivoInvalidoError(f'La asociación "{elem.get(XMI_ID)}" no tiene dos extremos.')
+
+        if tipo_xmi == "uml:AssociationClass":
+            # Una sola pieza en XMI, dos en el diagrama: el nodo (ya creado en el
+            # loop de clases) y la relación, que lo referencia como claseAsociacion.
+            # El id de la relación se recupera del id del extremo ("<rel>-origen").
+            id_extremo = extremos[0].get(XMI_ID) or ""
+            edge_id = id_extremo.removesuffix("-origen") if id_extremo.endswith("-origen") else None
+            agregar_edge(
+                edge_id or f"{elem.get(XMI_ID)}-asociacion",
+                _ref_tipo(extremos[0]),
+                _ref_tipo(extremos[1]),
+                {
+                    "tipo": "asociacion",
+                    "multiplicidadOrigen": _leer_multiplicidad(extremos[0]),
+                    "multiplicidadDestino": _leer_multiplicidad(extremos[1]),
+                    "nombre": None,
+                    "estiloLinea": "recta",
+                    "claseAsociacion": elem.get(XMI_ID),
+                },
+            )
+            continue
 
         extremo_parte = next((e for e in extremos if e.get("aggregation") in ("composite", "shared")), None)
         if extremo_parte is not None:
@@ -465,8 +552,8 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
 
         agregar_edge(
             elem.get(XMI_ID),
-            extremo_origen.get("type"),
-            extremo_destino.get("type"),
+            _ref_tipo(extremo_origen),
+            _ref_tipo(extremo_destino),
             {
                 "tipo": tipo,
                 "multiplicidadOrigen": _leer_multiplicidad(extremo_origen),

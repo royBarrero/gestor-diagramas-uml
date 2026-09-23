@@ -9,8 +9,17 @@ function generarId(prefijo) {
   return `${prefijo}-${Date.now()}-${contadorId}`
 }
 
+// Si se borra una clase que era clase de asociación de alguna relación, la
+// relación se conserva pero pierde la referencia (si no, quedaría apuntando a un
+// nodo inexistente en el contenido guardado).
+function quitarClasesAsociacion(eds, idsBorrados) {
+  return eds.map((e) =>
+    idsBorrados.includes(e.data?.claseAsociacion) ? { ...e, data: { ...e.data, claseAsociacion: null } } : e
+  )
+}
+
 export function PizarraProvider({ contenidoInicial, children }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(contenidoInicial?.nodes ?? [])
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(contenidoInicial?.nodes ?? [])
   const [edges, setEdges, onEdgesChange] = useEdgesState(contenidoInicial?.edges ?? [])
   const [seleccionId, setSeleccionId] = useState(null)
   const [claseAEliminarId, setClaseAEliminarId] = useState(null)
@@ -21,6 +30,17 @@ export function PizarraProvider({ contenidoInicial, children }) {
   const [relacionAEditar, setRelacionAEditar] = useState(null)
 
   const claseSeleccionada = nodes.find((n) => n.id === seleccionId) ?? null
+
+  // React Flow también borra nodos con la tecla Backspace, sin pasar por
+  // eliminarClase: acá se cubre ese camino.
+  const onNodesChange = useCallback(
+    (cambios) => {
+      onNodesChangeBase(cambios)
+      const idsBorrados = cambios.filter((c) => c.type === 'remove').map((c) => c.id)
+      if (idsBorrados.length) setEdges((eds) => quitarClasesAsociacion(eds, idsBorrados))
+    },
+    [onNodesChangeBase, setEdges]
+  )
 
   const reemplazarDiagrama = useCallback(
     (contenido) => {
@@ -50,7 +70,7 @@ export function PizarraProvider({ contenidoInicial, children }) {
   const eliminarClase = useCallback(
     (id) => {
       setNodes((nds) => nds.filter((n) => n.id !== id))
-      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id))
+      setEdges((eds) => quitarClasesAsociacion(eds.filter((e) => e.source !== id && e.target !== id), [id]))
       setSeleccionId((actual) => (actual === id ? null : actual))
     },
     [setNodes, setEdges]

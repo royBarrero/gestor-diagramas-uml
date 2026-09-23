@@ -7,6 +7,9 @@ export function useComandoVoz(diagramaId, { onAplicado }) {
   // inactivo | grabando | procesando | aplicado | no_entendido | error_ia | error
   const [estado, setEstado] = useState('inactivo')
   const [mensaje, setMensaje] = useState(null)
+  // Lo que entendió la transcripción: permite ver si un error fue "de oído"
+  // (transcripción) o de interpretación.
+  const [transcripcion, setTranscripcion] = useState(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
 
@@ -18,12 +21,14 @@ export function useComandoVoz(diagramaId, { onAplicado }) {
       try {
         const { data } = await api.post(`/diagramas/${diagramaId}/comando-voz`, formData)
         setMensaje(data.mensaje)
+        setTranscripcion(data.transcripcion ?? null)
         setEstado(data.estado)
         if (data.estado === 'aplicado' && data.contenido) {
           onAplicado(data.contenido)
         }
       } catch {
         setEstado('error')
+        setTranscripcion(null)
         setMensaje('No se pudo enviar el audio. Intentá de nuevo.')
       }
     },
@@ -81,5 +86,5 @@ export function useComandoVoz(diagramaId, { onAplicado }) {
     }
   }, [estado, detenerGrabacion, iniciarGrabacion])
 
-  return { estado, mensaje, alternarGrabacion }
+  return { estado, mensaje, transcripcion, alternarGrabacion }
 }

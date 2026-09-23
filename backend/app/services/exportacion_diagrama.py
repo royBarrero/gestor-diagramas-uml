@@ -83,6 +83,7 @@ def validar_contenido(contenido) -> dict:
 
     edges = []
     ids_edges = set()
+    clases_asociacion_usadas = set()
     for edge in edges_in:
         if not isinstance(edge, dict) or not edge.get("id"):
             raise ArchivoInvalidoError("Hay una relación sin id en el archivo.")
@@ -99,6 +100,21 @@ def validar_contenido(contenido) -> dict:
         if tipo not in TIPOS_RELACION:
             raise ArchivoInvalidoError(f'"{tipo}" no es un tipo de relación válido.')
 
+        # Clase de asociación (UML): solo en asociaciones, apuntando a una clase
+        # existente que no sea uno de los extremos y que no esté ya usada por otra
+        # relación. Una referencia que no cumple eso se descarta en vez de
+        # rechazar el archivo — queda la asociación simple.
+        clase_asociacion = data.get("claseAsociacion")
+        if (
+            tipo != "asociacion"
+            or clase_asociacion not in ids_nodos
+            or clase_asociacion in (source, target)
+            or clase_asociacion in clases_asociacion_usadas
+        ):
+            clase_asociacion = None
+        else:
+            clases_asociacion_usadas.add(clase_asociacion)
+
         edges.append(
             {
                 "id": edge["id"],
@@ -111,6 +127,7 @@ def validar_contenido(contenido) -> dict:
                     "multiplicidadDestino": data.get("multiplicidadDestino"),
                     "nombre": data.get("nombre"),
                     "estiloLinea": data.get("estiloLinea", "recta"),
+                    "claseAsociacion": clase_asociacion,
                 },
             }
         )
