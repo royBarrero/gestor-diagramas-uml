@@ -25,6 +25,19 @@
   color: var(--text-main);
 }
 
+.boton:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.separador {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+
 .activo {
   background: rgba(76, 141, 255, 0.15);
   border-color: var(--accent);

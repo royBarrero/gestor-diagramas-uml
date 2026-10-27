@@ -48,6 +48,11 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
     manejarClickParaConectar,
     cancelarOrigenConexion,
     reemplazarDiagrama,
+    aplicarDiagramaLocal,
+    deshacer,
+    rehacer,
+    iniciarArrastre,
+    finalizarArrastre,
     seleccionId,
     relacionAEditar,
     cancelarEdicionRelacion,
@@ -69,10 +74,10 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
     transcripcion: transcripcionVoz,
     alternarGrabacion,
   } = useComandoVoz(diagramaId, {
-    onAplicado: reemplazarDiagrama,
+    onAplicado: aplicarDiagramaLocal,
   })
   const { estado: estadoFoto, mensaje: mensajeFoto, subirImagen } = useDigitalizacionImagen(diagramaId, {
-    onAplicado: reemplazarDiagrama,
+    onAplicado: aplicarDiagramaLocal,
   })
   const inputFotoRef = useRef(null)
 
@@ -89,8 +94,28 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
   const { estado: estadoExportar, exportar } = useExportarDiagrama(diagramaId)
   const { estado: estadoExportarImagen, exportarImagen } = useExportarImagen(canvasRef, diagramaNombre)
   const { estado: estadoImportar, mensaje: mensajeImportar, importar } = useImportarDiagrama(diagramaId, {
-    onAplicado: reemplazarDiagrama,
+    onAplicado: aplicarDiagramaLocal,
   })
+
+  // Ctrl+Z / Ctrl+Y (o Ctrl+Shift+Z). Dentro de un campo de texto se deja el
+  // deshacer nativo del navegador.
+  useEffect(() => {
+    function manejarTecla(event) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      const destino = event.target
+      if (destino.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(destino.tagName)) return
+      const tecla = event.key.toLowerCase()
+      if (tecla === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        deshacer()
+      } else if (tecla === 'y' || (tecla === 'z' && event.shiftKey)) {
+        event.preventDefault()
+        rehacer()
+      }
+    }
+    window.addEventListener('keydown', manejarTecla)
+    return () => window.removeEventListener('keydown', manejarTecla)
+  }, [deshacer, rehacer])
 
   const otrosColaboradores = colaboradores.filter((c) => c.id !== usuario?.id)
 
@@ -252,6 +277,8 @@ function LienzoPizarra({ diagramaId, diagramaNombre }) {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={iniciarConexion}
+                onNodeDragStart={iniciarArrastre}
+                onNodeDragStop={finalizarArrastre}
                 onNodeClick={handleClickNodo}
                 onPaneClick={cancelarOrigenConexion}
                 nodeTypes={tiposDeNodo}

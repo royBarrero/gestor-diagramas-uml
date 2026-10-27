@@ -47,5 +47,9 @@ export function useAsistente() {
     [mensajes, cargando, pathname]
   )
 
-  return { abierto, alternarPanel, mensajes, cargando, enviarPregunta }
+  const limpiarConversacion = useCallback(() => {
+    setMensajes([])
+  }, [])
+
+  return { abierto, alternarPanel, mensajes, cargando, enviarPregunta, limpiarConversacion }
 }

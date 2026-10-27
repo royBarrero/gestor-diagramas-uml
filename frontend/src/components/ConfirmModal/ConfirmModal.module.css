@@ -1,70 +1,183 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(6, 11, 20, 0.65);
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  z-index: 100;
+  background: rgba(5, 6, 10, 0.7);
+  backdrop-filter: blur(3px);
 }
 
 .modal {
-  width: 100%;
-  max-width: 360px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 24px 24px;
+  background: var(--ui-barra);
+  border: 1px solid var(--ui-borde);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  color: var(--ui-texto);
+  text-align: center;
+  animation: entrar 0.18s ease-out;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal {
+    animation: none;
+  }
+}
+
+.icono,
+.iconoPeligro {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  font-size: 26px;
+}
+
+.icono {
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--ui-primario);
+}
+
+.iconoPeligro {
+  background: var(--ui-error-bg);
+  color: var(--ui-error);
+  box-shadow: 0 0 0 6px rgba(255, 158, 143, 0.06);
 }
 
 .titulo {
-  font-size: 18px;
-  color: var(--text-main);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ui-texto);
 }
 
 .mensaje {
-  margin: 0;
-  color: var(--text-muted);
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ui-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.detalles,
+.detallesPeligro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  list-style: none;
+  border-radius: 10px;
+  text-align: left;
   font-size: 14px;
-  line-height: 1.5;
+}
+
+.detalles {
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  color: var(--ui-texto-2);
+}
+
+.detallesPeligro {
+  background: rgba(61, 29, 24, 0.45);
+  border: 1px solid rgba(255, 158, 143, 0.25);
+  color: var(--ui-texto-2);
+}
+
+.detalles li,
+.detallesPeligro li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detalles i {
+  color: var(--ui-primario);
+  font-size: 17px;
+}
+
+.detallesPeligro i {
+  color: var(--ui-error);
+  font-size: 17px;
 }
 
 .acciones {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.botonCancelar,
+.botonConfirmar,
+.botonPeligro {
+  flex: 1;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
 }
 
 .botonCancelar {
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-main);
-  padding: 8px 16px;
-  font-family: var(--font-heading);
-  font-size: 14px;
+  border: 1px solid var(--ui-borde);
+  color: var(--ui-texto-2);
 }
 
-.botonCancelar:hover {
-  border-color: var(--accent);
+.botonCancelar:hover:not(:disabled) {
+  border-color: #353a49;
+  color: var(--ui-texto);
 }
 
 .botonConfirmar {
-  background: #e5484d;
   border: none;
-  border-radius: 6px;
-  color: var(--text-main);
-  padding: 8px 16px;
-  font-family: var(--font-heading);
-  font-weight: 500;
-  font-size: 14px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
 }
 
-.botonConfirmar:hover {
-  background: #c93a3e;
+.botonPeligro {
+  border: none;
+  background: var(--ui-error);
+  color: #3a0d06;
+}
+
+.botonConfirmar:hover:not(:disabled),
+.botonPeligro:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.botonCancelar:disabled,
+.botonConfirmar:disabled,
+.botonPeligro:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 420px) {
+  .acciones {
+    flex-direction: column-reverse;
+  }
 }

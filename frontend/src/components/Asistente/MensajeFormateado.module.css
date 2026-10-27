@@ -1,0 +1,78 @@
+.mensaje {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ui-texto);
+  overflow-wrap: anywhere;
+}
+
+.mensaje p {
+  margin: 0;
+}
+
+.mensaje strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.mensaje code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--ui-fondo);
+  border: 1px solid var(--ui-borde);
+  color: var(--ui-primario);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.titulo {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ui-texto);
+}
+
+/* Lista numerada como pasos con número en círculo */
+.pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pasos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.numeroPaso {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.16);
+  color: var(--ui-primario);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.vinetas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.vinetas li::marker {
+  color: var(--ui-primario);
+}

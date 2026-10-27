@@ -6,6 +6,23 @@
   --text-muted: #8fa3bd;
   --accent: #4c8dff;
 
+  /* Paleta del listado de proyectos (Dashboard) */
+  --ui-fondo: #0e1017;
+  --ui-barra: #12141c;
+  --ui-tarjeta: #161924;
+  --ui-borde: #262a36;
+  --ui-texto: #e7e8ee;
+  --ui-texto-2: #c9ccd6;
+  --ui-texto-3: #9aa0b0;
+  --ui-primario: #34d399;
+  --ui-primario-texto: #04291b;
+  --rol-admin-bg: #3d1d18;
+  --rol-admin-fg: #ff9e8f;
+  --rol-colab-bg: #10283f;
+  --rol-colab-fg: #7cc4ff;
+  --ui-error-bg: var(--rol-admin-bg);
+  --ui-error: var(--rol-admin-fg);
+
   --font-heading: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --font-body: 'IBM Plex Sans', sans-serif;

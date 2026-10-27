@@ -17,9 +17,11 @@ export function useGenerarBackend() {
       const nombre = nombreDesdeContentDisposition(respuesta.headers, 'backend.zip')
       descargarBlob(respuesta.data, nombre)
       setEstado('inactivo')
+      return true
     } catch (err) {
       setEstado('error')
       setMensaje(await mensajeDeErrorAxios(err, 'No se pudo generar el backend.'))
+      return false
     }
   }, [])
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../../components/AuthLayout/AuthLayout'
+import CampoTexto from '../../components/CampoTexto/CampoTexto'
 import { api } from '../../services/api'
 import styles from './Login.module.css'
 
@@ -30,35 +31,47 @@ function Login() {
   return (
     <AuthLayout titulo="Iniciar sesión" subtitulo="Accedé a tus proyectos y diagramas.">
       <form className={styles.form} onSubmit={handleSubmit}>
-        <label className={styles.label} htmlFor="email">
-          Correo
-        </label>
-        <input
+        <CampoTexto
           id="email"
+          label="Correo"
+          icono="ti-mail"
           type="email"
-          className={styles.input}
+          placeholder="tu@correo.com"
+          autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
         />
 
-        <label className={styles.label} htmlFor="password">
-          Contraseña
-        </label>
-        <input
+        <CampoTexto
           id="password"
+          label="Contraseña"
+          icono="ti-lock"
           type="password"
-          className={styles.input}
+          placeholder="Tu contraseña"
+          autoComplete="current-password"
+          conToggle
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
 
-        <button type="submit" className={styles.boton} disabled={cargando}>
-          {cargando ? 'Entrando...' : 'Entrar'}
-        </button>
+        {error && (
+          <p className={styles.error} role="alert">
+            <i className="ti ti-alert-circle" aria-hidden="true" />
+            {error}
+          </p>
+        )}
 
-        {error && <p className={styles.error}>{error}</p>}
+        <button type="submit" className={styles.boton} disabled={cargando}>
+          {cargando ? (
+            'Entrando...'
+          ) : (
+            <>
+              Entrar <i className="ti ti-arrow-right" aria-hidden="true" />
+            </>
+          )}
+        </button>
       </form>
 
       <p className={styles.linkTexto}>

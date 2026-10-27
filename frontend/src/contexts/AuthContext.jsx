@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
       .finally(() => setCargando(false))
   }, [])
 
-  return <AuthContext.Provider value={{ usuario, cargando }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ usuario, setUsuario, cargando }}>{children}</AuthContext.Provider>
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

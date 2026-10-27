@@ -1,0 +1,123 @@
+.cuenta {
+  display: flex;
+  flex-direction: column;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.bloque:first-child {
+  padding-top: 0;
+}
+
+.bloque + .bloque {
+  border-top: 1px solid var(--ui-borde);
+}
+
+.bloque:last-child {
+  padding-bottom: 0;
+}
+
+.bloqueTitulo {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ui-texto);
+}
+
+.bloqueDescripcion {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ui-texto-3);
+}
+
+.filaNombre {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.filaNombre > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.filaPasswords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.botonPrimario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.botonPrimario:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.botonPrimario:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.botonDerecha {
+  align-self: flex-end;
+}
+
+.avisoError,
+.avisoExito {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.avisoError i,
+.avisoExito i {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.avisoError {
+  background: var(--ui-error-bg);
+  color: var(--ui-error);
+}
+
+.avisoExito {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ui-primario);
+}
+
+@media (max-width: 640px) {
+  .filaNombre {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filaPasswords {
+    grid-template-columns: 1fr;
+  }
+
+  .botonDerecha {
+    align-self: stretch;
+  }
+}

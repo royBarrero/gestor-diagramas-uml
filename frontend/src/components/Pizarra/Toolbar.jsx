@@ -3,10 +3,19 @@ import { TIPOS_RELACION } from '../../constants/tiposRelacion'
 import styles from './Toolbar.module.css'
 
 function Toolbar() {
-  const { tipoRelacionActivo, seleccionarTipoRelacion, origenConexionId } = usePizarra()
+  const { tipoRelacionActivo, seleccionarTipoRelacion, origenConexionId, deshacer, rehacer, puedeDeshacer, puedeRehacer } =
+    usePizarra()
 
   return (
     <div className={styles.barra}>
+      <button type="button" title="Deshacer (Ctrl+Z)" className={styles.boton} onClick={deshacer} disabled={!puedeDeshacer}>
+        <i className="ti ti-arrow-back-up" />
+      </button>
+      <button type="button" title="Rehacer (Ctrl+Y)" className={styles.boton} onClick={rehacer} disabled={!puedeRehacer}>
+        <i className="ti ti-arrow-forward-up" />
+      </button>
+      <span className={styles.separador} />
+
       {TIPOS_RELACION.map((tipo) => (
         <button
           key={tipo.valor}

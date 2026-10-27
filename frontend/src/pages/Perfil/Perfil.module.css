@@ -1,151 +1,659 @@
-.pagina {
-  min-height: 100%;
-  padding: 48px 64px;
+.perfil {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
-.contenedor {
+/* ---------- Portada ---------- */
+
+.portada {
+  overflow: hidden;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  border-radius: 16px;
+}
+
+.banner {
+  height: 120px;
+  background-color: #0f2a22;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(52, 211, 153, 0.35) 0%, rgba(16, 40, 63, 0.6) 60%, rgba(22, 25, 36, 0) 100%);
+  background-size: 20px 20px, 100% 100%;
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.portadaCuerpo {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  padding: 0 28px 24px;
+}
+
+.portadaCargando {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
   width: 100%;
-  max-width: 560px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
 }
 
-.volver {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  align-self: flex-start;
-}
-
-.volver:hover {
-  color: var(--accent);
-}
-
-.tarjetaDatos,
-.tarjetaProyectos {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 24px;
-}
-
-.titulo {
-  font-size: 24px;
-  color: var(--text-main);
-  margin-bottom: 20px;
-}
-
-.subtitulo {
-  font-size: 18px;
-  color: var(--text-main);
-  margin-bottom: 16px;
-}
-
-.textoMuted {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.datos {
+.avatarGrande {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 16px;
-  margin: 0;
+  place-items: center;
+  flex-shrink: 0;
+  width: 104px;
+  height: 104px;
+  margin-top: -52px;
+  border-radius: 50%;
+  border: 5px solid var(--ui-tarjeta);
+  font-family: var(--font-heading);
+  font-size: 36px;
+  font-weight: 700;
 }
 
-.datos dt {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.datos dd {
-  margin: 0;
-  color: var(--text-main);
-  font-size: 14px;
-}
-
-.listaProyectos {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.identidad {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 16px;
 }
 
-.itemProyecto {
+.nombre {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ui-texto);
+  overflow-wrap: anywhere;
+}
+
+.datosFila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.email {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-texto-2);
+  font-size: 15px;
+}
+
+.email:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ui-texto);
+}
+
+.email .ti-copy,
+.email .ti-check {
+  color: var(--ui-texto-3);
+}
+
+.copiado {
+  color: var(--ui-primario);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.miembroDesde {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ui-texto-3);
+  font-size: 15px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chipAdmin,
+.chipColab,
+.rolAdmin,
+.rolColab {
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chipAdmin,
+.chipColab {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.rolAdmin,
+.rolColab {
+  padding: 2px 7px;
+  font-size: 12px;
+}
+
+.chipAdmin,
+.rolAdmin {
+  background: var(--rol-admin-bg);
+  color: var(--rol-admin-fg);
+}
+
+.chipColab,
+.rolColab {
+  background: var(--rol-colab-bg);
+  color: var(--rol-colab-fg);
+}
+
+/* ---------- Estadísticas ---------- */
+
+.estadisticas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.estadistica {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  border-radius: 14px;
+}
+
+.iconoEstadistica {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ui-primario);
+  font-size: 22px;
+}
+
+.valorEstadistica {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ui-texto);
+}
+
+.etiquetaEstadistica {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--ui-texto-3);
+}
+
+/* ---------- Columnas ---------- */
+
+.columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: start;
+}
+
+.columnaPrincipal,
+.columnaLateral {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+.columnaLateral {
+  position: sticky;
+  top: 24px;
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  border-radius: 14px;
+}
+
+.tarjetaCabecera {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 16px;
+  gap: 12px;
 }
 
-.nombreProyecto {
-  color: var(--text-main);
+.tarjetaTitulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ui-texto);
+}
+
+.tarjetaTitulo i {
+  color: var(--ui-primario);
+  font-size: 20px;
+}
+
+.contador {
+  min-width: 26px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #ef6a57;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.linkSecundario {
+  color: var(--ui-primario);
   font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.rolBadge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 2px 8px;
+.linkSecundario:hover {
+  text-decoration: underline;
 }
 
-.filaAccionesInvitacion {
+.textoTenue {
+  font-size: 14px;
+  color: var(--ui-texto-3);
+}
+
+.resaltado {
+  color: var(--ui-primario);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ---------- Invitaciones ---------- */
+
+.listaInvitaciones,
+.lineaTiempo,
+.listaEquipo {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listaInvitaciones {
+  gap: 10px;
+}
+
+.invitacion {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--ui-fondo);
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+}
+
+.invitacionTexto {
+  flex: 1;
+  min-width: 0;
+}
+
+.invitacionTexto p {
+  margin: 0 0 2px;
+  font-size: 15px;
+  color: var(--ui-texto-2);
+}
+
+.invitacionTexto strong {
+  color: var(--ui-texto);
+  font-weight: 600;
+}
+
+.invitacionTexto .resaltado {
+  color: var(--ui-primario);
+}
+
+.invitacionAcciones {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.botonAceptar {
-  background: var(--accent);
+.botonPrimario,
+.botonSecundario {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.botonPrimario {
   border: none;
-  border-radius: 6px;
-  color: var(--text-main);
-  padding: 6px 12px;
-  font-family: var(--font-heading);
-  font-size: 12px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
 }
 
-.botonRechazar {
+.botonPrimario:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.botonSecundario {
+  border: 1px solid var(--ui-borde);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-main);
-  padding: 6px 12px;
-  font-family: var(--font-heading);
-  font-size: 12px;
+  color: var(--ui-texto-2);
 }
 
-.botonRechazar:hover {
-  border-color: #e5484d;
-  color: #e5484d;
+.botonSecundario:hover:not(:disabled) {
+  border-color: var(--ui-error);
+  color: var(--ui-error);
 }
 
-.botonLogout {
-  align-self: flex-start;
-  background: transparent;
-  border: 1px solid #e5484d;
-  border-radius: 6px;
-  color: #e5484d;
-  padding: 10px 16px;
-  font-family: var(--font-heading);
-  font-weight: 500;
+.botonPrimario:disabled,
+.botonSecundario:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.avisoError {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--ui-error-bg);
+  color: var(--ui-error);
   font-size: 14px;
 }
 
-.botonLogout:hover {
-  background: #e5484d;
-  color: var(--text-main);
+/* ---------- Actividad (línea de tiempo) ---------- */
+
+.evento {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0 12px 26px;
+}
+
+/* línea vertical que une los puntos */
+.evento::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ui-borde);
+}
+
+.evento:first-child::before {
+  top: 50%;
+}
+
+.evento:last-child::before {
+  bottom: 50%;
+}
+
+.evento:only-child::before {
+  display: none;
+}
+
+.puntoEvento {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--ui-primario);
+  box-shadow: 0 0 0 4px var(--ui-tarjeta);
+}
+
+.evento:first-child .puntoEvento {
+  box-shadow: 0 0 0 4px var(--ui-tarjeta), 0 0 0 7px rgba(52, 211, 153, 0.25);
+}
+
+.eventoCuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eventoTitulo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.eventoNombre {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ui-texto);
+  overflow-wrap: anywhere;
+}
+
+.linkAbrir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  border-radius: 8px;
+  color: var(--ui-primario);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.linkAbrir:hover {
+  border-color: var(--ui-primario);
+  background: rgba(52, 211, 153, 0.08);
+}
+
+/* ---------- Equipo ---------- */
+
+.listaEquipo {
+  gap: 4px;
+}
+
+.companero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+}
+
+.companero:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.companeroTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.companeroNombre {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui-texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Estados vacíos ---------- */
+
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--ui-texto-3);
+  font-size: 14px;
+}
+
+.vacio p {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui-texto-2);
+}
+
+.iconoVacio {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--ui-fondo);
+  border: 1px dashed var(--ui-borde);
+  color: var(--ui-texto-3);
+  font-size: 24px;
+}
+
+/* ---------- Esqueletos de carga ---------- */
+
+.esqueleto {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--ui-borde) 0%, #2f3443 50%, var(--ui-borde) 100%);
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+
+.esqueletoAvatar {
+  width: 104px;
+  height: 104px;
+  margin-top: -52px;
+  border-radius: 50%;
+  border: 5px solid var(--ui-tarjeta);
+}
+
+.esqueletoLinea {
+  width: 240px;
+  height: 28px;
+  margin-bottom: 10px;
+}
+
+.esqueletoNumero {
+  width: 48px;
+  height: 28px;
+  margin-bottom: 4px;
+}
+
+.esqueletoFila {
+  height: 56px;
+}
+
+@keyframes brillo {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto {
+    animation: none;
+  }
+}
+
+/* ---------- Pantallas chicas ---------- */
+
+@media (max-width: 1100px) {
+  .columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .columnaLateral {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .estadisticas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .portadaCuerpo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0 18px 20px;
+  }
+
+  .nombre {
+    font-size: 24px;
+  }
+
+  .estadistica {
+    padding: 14px;
+  }
+
+  .valorEstadistica {
+    font-size: 22px;
+  }
+
+  .tarjeta {
+    padding: 18px 16px;
+  }
+
+  .invitacion {
+    flex-wrap: wrap;
+  }
+
+  .invitacionAcciones {
+    width: 100%;
+  }
+
+  .invitacionAcciones button {
+    flex: 1;
+  }
+
+  .evento {
+    flex-wrap: wrap;
+  }
 }

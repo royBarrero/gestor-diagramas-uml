@@ -1,0 +1,176 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 40px;
+  background-color: var(--ui-fondo);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  border-right: 1px solid var(--ui-borde);
+  color: var(--ui-texto);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-size: 22px;
+}
+
+.centro {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin: auto 0;
+}
+
+.titular {
+  max-width: 560px;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ui-texto);
+}
+
+.resaltado {
+  color: var(--ui-primario);
+}
+
+.ilustracion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.diagrama {
+  width: 100%;
+  overflow: visible;
+}
+
+.clase rect {
+  fill: var(--ui-tarjeta);
+  stroke: var(--ui-primario);
+  stroke-width: 1.2;
+}
+
+.clase line {
+  stroke: var(--ui-borde);
+}
+
+.clase text {
+  fill: var(--ui-texto-2);
+  font-family: var(--font-body);
+  font-size: 9.5px;
+}
+
+.clase .nombreClase {
+  fill: var(--ui-texto);
+  font-weight: 600;
+  font-size: 10.5px;
+}
+
+.relacion {
+  fill: none;
+  stroke: var(--ui-texto-3);
+  stroke-width: 1;
+}
+
+.multiplicidad {
+  fill: var(--ui-texto-3);
+  font-family: var(--font-body);
+  font-size: 8.5px;
+}
+
+.editando {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 30px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--ui-primario);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.puntoEditando {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ui-primario);
+}
+
+.funcionalidades {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.funcionalidades li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 16px;
+  color: var(--ui-texto-2);
+}
+
+.iconoFuncionalidad {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ui-primario);
+  font-size: 18px;
+}
+
+.pie {
+  font-size: 14px;
+  color: var(--ui-texto-3);
+}
+
+/* En celular el panel va arriba del formulario */
+@media (max-width: 899px) {
+  .panel {
+    gap: 24px;
+    padding: 24px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--ui-borde);
+  }
+
+  .titular {
+    font-size: 30px;
+  }
+
+  .pie {
+    display: none;
+  }
+}
+
+@media (max-width: 599px) {
+  .ilustracion {
+    display: none;
+  }
+}

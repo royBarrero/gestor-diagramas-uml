@@ -1,152 +1,467 @@
+/* ---------- Botón flotante ---------- */
+
 .botonFlotante {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--accent);
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
   border: none;
-  color: var(--text-main);
-  font-size: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(6, 11, 20, 0.4);
-  z-index: 200;
+  border-radius: 50%;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-size: 26px;
+  box-shadow: 0 10px 28px rgba(52, 211, 153, 0.25), 0 4px 12px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .botonFlotante:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
+  transform: translateY(-2px);
 }
+
+.botonFlotanteAbierto {
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto);
+  border: 1px solid var(--ui-borde);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Panel ---------- */
 
 .panel {
   position: fixed;
   right: 24px;
-  bottom: 88px;
-  width: 360px;
-  max-width: calc(100vw - 32px);
-  height: 500px;
-  max-height: calc(100vh - 120px);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  bottom: 92px;
+  z-index: 150;
   display: flex;
   flex-direction: column;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  height: 620px;
+  max-height: calc(100vh - 116px);
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(6, 11, 20, 0.5);
-  z-index: 200;
+  background: var(--ui-barra);
+  border: 1px solid var(--ui-borde);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: var(--ui-texto);
+  animation: aparecer 0.18s ease-out;
 }
+
+.panelExpandido {
+  width: 640px;
+  height: 85vh;
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Cabecera ---------- */
 
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
   flex-shrink: 0;
+  padding: 14px 14px 14px 16px;
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.iconoBot {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--ui-primario);
+  font-size: 21px;
+}
+
+.headerTexto {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .titulo {
   font-family: var(--font-heading);
-  font-size: 14px;
-  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.estado {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ui-texto-3);
+}
+
+.puntoEstado {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-primario);
+}
+
+.headerAcciones {
+  display: flex;
+  gap: 4px;
 }
 
 .botonIcono {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
+  color: var(--ui-texto-3);
+  font-size: 18px;
 }
 
-.botonIcono:hover {
-  border-color: var(--accent);
-  color: var(--text-main);
+.botonIcono:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-texto);
 }
+
+.botonIcono:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- Mensajes ---------- */
 
 .mensajes {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 18px;
+  scroll-behavior: smooth;
 }
 
-.vacio {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.burbujaUsuario,
-.burbujaAsistente {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.4;
-  white-space: pre-wrap;
+.filaUsuario {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .burbujaUsuario {
-  align-self: flex-end;
-  background: var(--accent);
-  color: var(--text-main);
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.burbujaAsistente {
-  align-self: flex-start;
-  background: var(--bg-main);
-  border: 1px solid var(--border);
-  color: var(--text-main);
+.filaAsistente {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
+
+.avatarBot {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  color: var(--ui-primario);
+  font-size: 16px;
+}
+
+.respuesta {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px 10px;
+  border-radius: 4px 14px 14px 14px;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+}
+
+.botonCopiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 3px 8px;
+  margin-left: -8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-texto-3);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.respuesta:hover .botonCopiar,
+.botonCopiar:focus-visible {
+  opacity: 1;
+}
+
+.botonCopiar:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ui-texto);
+}
+
+/* Indicador "escribiendo" */
+.escribiendo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 16px;
+  border-radius: 4px 14px 14px 14px;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+}
+
+.escribiendo span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-texto-3);
+  animation: rebote 1.2s ease-in-out infinite;
+}
+
+.escribiendo span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.escribiendo span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes rebote {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ---------- Bienvenida ---------- */
+
+.bienvenida {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: auto 0;
+}
+
+.iconoBienvenida {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--ui-primario);
+  font-size: 22px;
+}
+
+.saludo {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ui-texto);
+}
+
+.saludoTexto {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ui-texto-2);
+}
+
+.sugerencias {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.sugerencia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 14px;
+  text-align: left;
+}
+
+.sugerencia i {
+  flex-shrink: 0;
+  color: var(--ui-texto-3);
+}
+
+.sugerencia:hover {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: var(--ui-texto);
+}
+
+.sugerencia:hover i {
+  color: var(--ui-primario);
+}
+
+/* ---------- Entrada ---------- */
 
 .form {
   display: flex;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--border);
+  flex-direction: column;
+  gap: 6px;
   flex-shrink: 0;
+  padding: 12px 14px 10px;
+  border-top: 1px solid var(--ui-borde);
+}
+
+.cajaInput {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  background: var(--ui-tarjeta);
+  border: 1px solid var(--ui-borde);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cajaInput:focus-within {
+  border-color: var(--ui-primario);
+  box-shadow: 0 0 0 1px var(--ui-primario);
 }
 
 .input {
   flex: 1;
   min-width: 0;
-  background: var(--bg-main);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-main);
-  padding: 8px 10px;
-  font-size: 13px;
+  max-height: 120px;
+  padding: 8px 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ui-texto);
   font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-.input:focus {
-  outline: none;
-  border-color: var(--accent);
+.input::placeholder {
+  color: var(--ui-texto-3);
 }
 
 .botonEnviar {
-  background: var(--accent);
-  border: none;
-  border-radius: 6px;
-  color: var(--text-main);
-  width: 36px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 9px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-size: 18px;
+}
+
+.botonEnviar:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .botonEnviar:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ayuda {
+  padding-left: 4px;
+  font-size: 12px;
+  color: var(--ui-texto-3);
+}
+
+.ayuda kbd {
+  padding: 0 5px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 4px;
+  background: var(--ui-tarjeta);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .escribiendo span {
+    animation: none;
+  }
+
+  .mensajes {
+    scroll-behavior: auto;
+  }
+}
+
+/* ---------- Celular ---------- */
+
+@media (max-width: 600px) {
+  .panel,
+  .panelExpandido {
+    right: 8px;
+    left: 8px;
+    bottom: 84px;
+    width: auto;
+    max-width: none;
+    height: auto;
+    top: 8px;
+    max-height: none;
+  }
+
+  .soloEscritorio {
+    display: none;
+  }
+
+  .botonFlotante {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .ayuda {
+    display: none;
+  }
 }

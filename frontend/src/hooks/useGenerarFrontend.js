@@ -18,9 +18,11 @@ export function useGenerarFrontend() {
       const nombre = nombreDesdeContentDisposition(respuesta.headers, 'frontend.zip')
       descargarBlob(respuesta.data, nombre)
       setEstado('inactivo')
+      return true
     } catch (err) {
       setEstado('error')
       setMensaje(await mensajeDeErrorAxios(err, 'No se pudo generar el frontend.'))
+      return false
     }
   }, [])
 
