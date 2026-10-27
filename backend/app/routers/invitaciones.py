@@ -56,6 +56,8 @@ def listar_pendientes(
             proyecto_id=proyecto.id,
             proyecto_nombre=proyecto.nombre,
             invitado_por=invitador.nombre,
+            invitado_por_id=invitador.id,
+            created_at=invitacion.created_at,
         )
         for invitacion, proyecto, invitador in filas
     ]

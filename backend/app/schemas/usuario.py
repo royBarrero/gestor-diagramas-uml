@@ -11,6 +11,15 @@ class UsuarioRegistro(BaseModel):
     password: str
 
 
+class UsuarioActualizar(BaseModel):
+    nombre: str
+
+
+class CambioPassword(BaseModel):
+    password_actual: str
+    password_nueva: str
+
+
 class UsuarioOut(BaseModel):
     id: int
     nombre: str

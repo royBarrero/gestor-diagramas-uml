@@ -9,13 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.diagrama import Diagrama
 from app.models.invitacion import Invitacion
 from app.models.miembro_proyecto import MiembroProyecto
 from app.models.proyecto import Proyecto
 from app.models.usuario import Usuario
 from app.realtime import room_usuario, sio
 from app.schemas.invitacion import InvitacionCrear, MiembroOut
-from app.schemas.proyecto import ProyectoConRolOut, ProyectoCrear, ProyectoEditar
+from app.schemas.proyecto import MiembroResumenOut, ProyectoConRolOut, ProyectoCrear, ProyectoEditar
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
@@ -79,6 +80,7 @@ def listar_mis_proyectos(
             Proyecto.id,
             Proyecto.nombre,
             Proyecto.descripcion,
+            Proyecto.backend_generado_en,
             MiembroProyecto.rol,
         )
         .outerjoin(
@@ -96,27 +98,47 @@ def listar_mis_proyectos(
     )
 
     ids_proyectos = [fila.id for fila in filas]
-    conteos = (
-        dict(
-            db.query(MiembroProyecto.id_proyecto, func.count(MiembroProyecto.id))
+    miembros_por_proyecto: dict[int, list[MiembroResumenOut]] = {}
+    diagramas_por_proyecto: dict[int, Diagrama] = {}
+    if ids_proyectos:
+        filas_miembros = (
+            db.query(MiembroProyecto.id_proyecto, Usuario.id, Usuario.nombre)
+            .join(Usuario, Usuario.id == MiembroProyecto.id_usuario)
             .filter(MiembroProyecto.id_proyecto.in_(ids_proyectos))
-            .group_by(MiembroProyecto.id_proyecto)
+            .order_by(MiembroProyecto.id)
             .all()
         )
-        if ids_proyectos
-        else {}
-    )
+        for id_proyecto, id_usuario, nombre in filas_miembros:
+            miembros_por_proyecto.setdefault(id_proyecto, []).append(
+                MiembroResumenOut(id=id_usuario, nombre=nombre)
+            )
 
-    return [
-        ProyectoConRolOut(
-            id=fila.id,
-            nombre=fila.nombre,
-            descripcion=fila.descripcion,
-            rol=fila.rol or "administrador",
-            total_miembros=conteos.get(fila.id) or 1,
+        # Un diagrama por proyecto; puede no existir todavía (se crea al abrir la pizarra).
+        diagramas_por_proyecto = {
+            diagrama.id_proyecto: diagrama
+            for diagrama in db.query(Diagrama).filter(Diagrama.id_proyecto.in_(ids_proyectos)).all()
+        }
+
+    resultado = []
+    for fila in filas:
+        miembros = miembros_por_proyecto.get(fila.id, [])
+        diagrama = diagramas_por_proyecto.get(fila.id)
+        contenido = (diagrama.contenido if diagrama else None) or {}
+        resultado.append(
+            ProyectoConRolOut(
+                id=fila.id,
+                nombre=fila.nombre,
+                descripcion=fila.descripcion,
+                rol=fila.rol or "administrador",
+                total_miembros=len(miembros) or 1,
+                total_clases=len(contenido.get("nodes") or []),
+                total_relaciones=len(contenido.get("edges") or []),
+                updated_at=diagrama.updated_at if diagrama else None,
+                miembros=miembros,
+                backend_generado_en=fila.backend_generado_en,
+            )
         )
-        for fila in filas
-    ]
+    return resultado
 
 
 @router.post("", response_model=ProyectoConRolOut, status_code=status.HTTP_201_CREATED)

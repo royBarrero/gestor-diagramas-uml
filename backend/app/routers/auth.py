@@ -9,7 +9,7 @@ from app.core.jwt import create_access_token
 from app.core.security import hash_password, verify_password
 from app.models.usuario import Usuario
 from app.schemas.auth import LoginRequest, Token
-from app.schemas.usuario import UsuarioOut, UsuarioRegistro
+from app.schemas.usuario import CambioPassword, UsuarioActualizar, UsuarioOut, UsuarioRegistro
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -55,3 +55,43 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UsuarioOut)
 def obtener_usuario_actual(usuario_actual: Usuario = Depends(get_current_user)):
     return usuario_actual
+
+
+@router.put("/me", response_model=UsuarioOut)
+def actualizar_usuario_actual(
+    datos: UsuarioActualizar,
+    usuario_actual: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    nombre = datos.nombre.strip()
+    if not nombre:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nombre no puede estar vacío.",
+        )
+
+    usuario_actual.nombre = nombre
+    db.commit()
+    db.refresh(usuario_actual)
+    return usuario_actual
+
+
+@router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def cambiar_password(
+    datos: CambioPassword,
+    usuario_actual: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(datos.password_actual, usuario_actual.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual es incorrecta.",
+        )
+    if not datos.password_nueva:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña nueva no puede estar vacía.",
+        )
+
+    usuario_actual.password_hash = hash_password(datos.password_nueva)
+    db.commit()

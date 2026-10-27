@@ -14,6 +14,10 @@ Convenciones de relación (mismas ya documentadas y probadas en
   de esa clase participan por cada instancia del otro extremo (ej. "Persona
   1 -- * Pedido": una Persona tiene muchos Pedidos, cada Pedido tiene una
   Persona).
+- Clase de asociación (`data.claseAsociacion` de una asociación): la clase
+  intermedia X se vuelve dueña de dos `manyToOne` (hacia cada extremo) y los
+  extremos la ven como `oneToMany`; no se genera la relación directa entre
+  los extremos, sea cual sea su multiplicidad.
 """
 
 from __future__ import annotations
@@ -63,7 +67,19 @@ def _a_identificador(texto: str | None, mayuscula_inicial: bool, respaldo: str) 
 
 
 def _pluralizar(palabra: str) -> str:
-    return palabra if palabra.endswith("s") else f"{palabra}s"
+    """Plural en español de la última palabra (camelCase o kebab-case solo
+    importan por cómo terminan). Ya llega sin tildes. Terminada en s/x se
+    deja igual: o ya está en plural o es invariable (lunes, tesis)."""
+    if not palabra:
+        return palabra
+    final = palabra[-1].lower()
+    if final in "sx":
+        return palabra
+    if final == "z":
+        return f"{palabra[:-1]}ces"
+    if final in "lnrdjy":
+        return f"{palabra}es"
+    return f"{palabra}s"
 
 
 def _endpoint_de(nombre_java: str) -> str:
@@ -225,9 +241,43 @@ def _procesar_herencia(edge: dict, entidades_por_id: dict[str, EntidadModelo]) -
     subclase.campo_id_generado = False
 
 
+def _procesar_clase_asociacion(edge: dict, entidades_por_id: dict[str, EntidadModelo]) -> None:
+    """Asociación con clase intermedia X entre A y B: se descompone en
+    X *-- 1 A y X *-- 1 B (X es dueña de ambas FK) y A/B ven a X como
+    colección inversa. No se genera la relación directa A <-> B."""
+    intermedia = entidades_por_id[edge["data"]["claseAsociacion"]]
+    extremos = [entidades_por_id[edge["source"]], entidades_por_id[edge["target"]]]
+    nombre_inverso = _pluralizar(_a_identificador(intermedia.nombre_java, mayuscula_inicial=False, respaldo="relacion"))
+
+    for extremo in extremos:
+        # Se agrega cada relación antes de calcular la siguiente para que
+        # `_nombre_unico` distinga una autoasociación (A == B): "a" y "a2".
+        rel_intermedia = RelacionModelo(
+            "manyToOne",
+            _nombre_unico(intermedia, _a_identificador(extremo.nombre_java, mayuscula_inicial=False, respaldo="relacion")),
+            extremo.nombre_java,
+            False,
+            propietaria=True,
+        )
+        intermedia.relaciones.append(rel_intermedia)
+
+        rel_extremo = RelacionModelo(
+            "oneToMany",
+            _nombre_unico(extremo, nombre_inverso),
+            intermedia.nombre_java,
+            True,
+            propietaria=False,
+            mapped_by=rel_intermedia.nombre,
+        )
+        extremo.relaciones.append(rel_extremo)
+
+
 def _procesar_relacion_asociativa(edge: dict, entidades_por_id: dict[str, EntidadModelo]) -> None:
     data = edge["data"]
     tipo = data["tipo"]
+    if tipo == "asociacion" and data.get("claseAsociacion"):
+        _procesar_clase_asociacion(edge, entidades_por_id)
+        return
     origen = entidades_por_id[edge["source"]]
     destino = entidades_por_id[edge["target"]]
 

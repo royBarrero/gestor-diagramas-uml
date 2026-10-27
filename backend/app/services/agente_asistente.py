@@ -36,7 +36,68 @@ _PROMPT_SISTEMA = (
     "acción — si hace falta, guiá paso a paso (ej. 'hacé clic en...', "
     "'andá a...'). Si la pregunta no tiene que ver con el uso del sistema, o "
     "no la entendés, pedile amablemente al usuario que la reformule o "
-    "aclare a qué funcionalidad se refiere, en vez de inventar una respuesta."
+    "aclare a qué funcionalidad se refiere, en vez de inventar una respuesta.\n\n"
+    "Formato de la respuesta (se muestra en un chat chico, tiene que leerse "
+    "fácil): usá Markdown simple, máximo unas 120 palabras. Si hay pasos, "
+    "ponelos en una lista numerada (1., 2., 3.) con frases cortas, un paso por "
+    "línea. Usá **negrita** solo para nombres de botones, menús o pantallas. "
+    "Párrafos de 1 a 3 oraciones. No uses tablas ni bloques de código."
+)
+
+# Mapa de la interfaz con los nombres EXACTOS de botones y menús, para que el
+# asistente no invente pasos. Si cambia la UI (textos de botones, menús,
+# dónde está cada acción), actualizar esta guía.
+_GUIA_INTERFAZ = (
+    "GUÍA DE LA INTERFAZ ACTUAL (usá estos nombres tal cual):\n"
+    "- Menú lateral (Dashboard y Mi perfil): **Proyectos**, **Mi perfil** "
+    "(muestra un número si hay invitaciones pendientes) y **Cerrar sesión**. "
+    "En la barra superior del Dashboard hay un buscador 'Buscar proyectos por nombre'.\n"
+    "- Dashboard ('Tus proyectos'): botón **Nuevo proyecto** (arriba a la "
+    "derecha) o la tarjeta **Crear proyecto** al final de la lista; piden "
+    "nombre y descripción opcional. Filtros: **Todos**, **Soy administrador**, "
+    "**Soy colaborador**.\n"
+    "- Cada proyecto es una tarjeta que muestra el rol del usuario "
+    "(Administrador/Colaborador), cantidad de clases y relaciones, y los "
+    "miembros. Botones de la tarjeta:\n"
+    "  · **Abrir**: entra al editor (Pizarra).\n"
+    "  · **Generar** (solo administrador): despliega **Backend** (Spring Boot) "
+    "y **Frontend** (Flutter); cada uno descarga un .zip. **Frontend** queda "
+    "bloqueado hasta haber generado el **Backend** al menos una vez.\n"
+    "  · Menú de tres puntos **⋮** arriba a la derecha de la tarjeta (solo "
+    "administrador) con **Editar**, **Miembros** y **Eliminar**.\n"
+    "- Invitar a un colaborador (solo administrador): en la tarjeta del "
+    "proyecto, menú **⋮** → **Miembros** → escribir el correo en el campo "
+    "**Invitar colaborador** → botón **Invitar**. La persona tiene que tener "
+    "cuenta registrada. El invitado acepta en **Mi perfil** → sección "
+    "**Invitaciones pendientes** → **Aceptar** (o **Rechazar**).\n"
+    "- Quitar a un miembro: menú **⋮** → **Miembros** → ícono de quitar al "
+    "lado de la persona → confirmar con **Quitar**. Al creador del proyecto no "
+    "se lo puede quitar.\n"
+    "- Editar o eliminar un proyecto: menú **⋮** → **Editar** (nombre y "
+    "descripción, botón **Guardar cambios**) o **Eliminar** (pide confirmar "
+    "con **Eliminar proyecto**; no se puede deshacer).\n"
+    "- Mi perfil: datos de la cuenta, estadísticas, **Invitaciones "
+    "pendientes**, **Actividad reciente**, **Tu equipo** y la sección "
+    "**Cuenta**, donde se cambia el nombre (botón **Guardar**) y la contraseña "
+    "en **Cambiar contraseña** (contraseña actual, nueva y confirmación, botón "
+    "**Actualizar contraseña**).\n"
+    "- Pizarra (editor del diagrama), barra superior: flecha para volver a "
+    "los proyectos, avatares de quién está conectado en ese momento, botón "
+    "**Comando de voz** (micrófono), botón **Digitalizar diagrama por foto** "
+    "(cámara) y menú **Archivo** → **Exportar** (JSON, imagen PNG o XMI) / "
+    "**Importar** (JSON o XMI; reemplaza el diagrama actual).\n"
+    "- Pizarra, panel **Clases** (a la izquierda): botón **Nueva clase**. "
+    "Haciendo doble clic sobre el nombre de una clase, un atributo o un método "
+    "se edita en el lugar.\n"
+    "- Pizarra, barra de relaciones: **Asociación**, **Herencia**, "
+    "**Agregación**, **Composición**, **Dependencia**. Se elige el tipo, se "
+    "hace clic en la clase de origen y después en la de destino, y se cargan "
+    "las multiplicidades. También están **Deshacer** (Ctrl+Z) y **Rehacer** (Ctrl+Y).\n"
+    "- La generación de código NO está en la Pizarra: se hace desde el botón "
+    "**Generar** de la tarjeta del proyecto en el Dashboard.\n\n"
+    "Reglas: nombrá solo botones, menús y secciones que aparecen en esta guía, "
+    "con el mismo nombre. Si te preguntan por algo que no está en la guía, "
+    "decí que no estás seguro de dónde está en vez de inventar un botón o un paso."
 )
 
 
@@ -52,7 +113,7 @@ def responder_pregunta(pregunta: str, contexto_pantalla: str | None, historial: 
     """
     cliente = cliente_openai()
 
-    mensajes = [{"role": "system", "content": _PROMPT_SISTEMA}]
+    mensajes = [{"role": "system", "content": f"{_PROMPT_SISTEMA}\n\n{_GUIA_INTERFAZ}"}]
     if contexto_pantalla:
         mensajes.append({"role": "system", "content": f"Pantalla actual del usuario: {contexto_pantalla}"})
     for turno in historial:
