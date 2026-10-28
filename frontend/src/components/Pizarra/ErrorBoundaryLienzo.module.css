@@ -10,19 +10,19 @@
 }
 
 .titulo {
-  color: var(--text-main);
+  color: var(--ui-texto);
   font-family: var(--font-heading);
   font-size: 16px;
 }
 
 .detalle {
-  color: #e5484d;
+  color: var(--ui-error);
   font-family: var(--font-mono);
   font-size: 13px;
   max-width: 480px;
 }
 
 .ayuda {
-  color: var(--text-muted);
+  color: var(--ui-texto-3);
   font-size: 13px;
 }

@@ -22,6 +22,13 @@
   --rol-colab-fg: #7cc4ff;
   --ui-error-bg: var(--rol-admin-bg);
   --ui-error: var(--rol-admin-fg);
+  --ui-tipo: #7dd3fc;
+
+  /* Color de la IA (agente del chat grupal, sugerencias) */
+  --ia: #22d3ee;
+  --ia-claro: #67e8f9;
+  --ia-bg: #0b2229;
+  --ia-borde: #155e6e;
 
   --font-heading: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -42,8 +49,8 @@ body,
 }
 
 body {
-  background: var(--bg-main);
-  color: var(--text-main);
+  background: var(--ui-fondo);
+  color: var(--ui-texto);
   font-family: var(--font-body);
 }
 
@@ -63,9 +70,9 @@ input {
   font-family: var(--font-body);
 }
 
-/* Fondo tipo "plano técnico": cuadrícula sutil sobre --bg-main */
+/* Fondo tipo "plano técnico": cuadrícula sutil sobre --ui-fondo */
 .grid-bg {
-  background-color: var(--bg-main);
+  background-color: var(--ui-fondo);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);

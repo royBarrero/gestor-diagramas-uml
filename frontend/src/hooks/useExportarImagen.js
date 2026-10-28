@@ -11,7 +11,7 @@ export function useExportarImagen(elementoRef, nombreDiagrama) {
     setEstado('procesando')
     try {
       const dataUrl = await toPng(elementoRef.current, {
-        backgroundColor: '#0f1b2d',
+        backgroundColor: '#0e1017',
         pixelRatio: 2,
         cacheBust: true,
       })

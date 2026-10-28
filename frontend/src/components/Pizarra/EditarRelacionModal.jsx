@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { TIPOS_RELACION } from '../../constants/tiposRelacion'
 import { usePizarra } from '../../contexts/PizarraContext'
-import styles from './MultiplicidadModal.module.css'
+import ModalPizarra from './ModalPizarra'
+import { CampoMultiplicidad } from './MultiplicidadModal'
+import styles from './ModalPizarra.module.css'
 
 // Edita una relación ya existente (tipo, multiplicidad, nombre, clase de
 // asociación) — se dispara desde el mini-menú de RelacionEdge.jsx cuando el
@@ -17,6 +18,9 @@ function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
   const [claseAsociacion, setClaseAsociacion] = useState(() =>
     nodes.some((n) => n.id === datos.claseAsociacion) ? datos.claseAsociacion : ''
   )
+
+  const nombreOrigen = nodes.find((n) => n.id === relacion.source)?.data.nombre
+  const nombreDestino = nodes.find((n) => n.id === relacion.target)?.data.nombre
 
   // Candidatas a clase de asociación: ni los extremos de esta relación ni una
   // clase que ya sea clase de asociación de otra relación (en UML cada clase de
@@ -39,50 +43,44 @@ function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
     })
   }
 
-  return createPortal(
-    <div className={styles.overlay} onClick={onCancelar}>
-      <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
-        <h2 className={styles.titulo}>Editar relación</h2>
-        <form className={styles.form} onSubmit={handleSubmit}>
+  return (
+    <ModalPizarra
+      titulo="Editar relación"
+      subtitulo={nombreOrigen && nombreDestino ? `${nombreOrigen} → ${nombreDestino}` : undefined}
+      icono="ti-pencil"
+      onCerrar={onCancelar}
+    >
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.campo}>
           <label className={styles.label} htmlFor="rel-tipo">
             Tipo de relación
           </label>
-          <select
-            id="rel-tipo"
-            className={styles.input}
-            value={tipo}
-            onChange={(event) => setTipo(event.target.value)}
-          >
+          <select id="rel-tipo" className={styles.input} value={tipo} onChange={(event) => setTipo(event.target.value)}>
             {TIPOS_RELACION.map((t) => (
               <option key={t.valor} value={t.valor}>
                 {t.etiqueta}
               </option>
             ))}
           </select>
+        </div>
 
-          <label className={styles.label} htmlFor="edit-mult-origen">
-            Extremo origen (ej: 1, 0..1, 0..*, 1..*)
-          </label>
-          <input
-            id="edit-mult-origen"
-            className={styles.input}
-            value={origen}
-            onChange={(event) => setOrigen(event.target.value)}
-            autoFocus
-          />
+        <CampoMultiplicidad
+          id="edit-mult-origen"
+          etiqueta={`Multiplicidad en ${nombreOrigen ?? 'el origen'}`}
+          valor={origen}
+          onCambiar={setOrigen}
+          autoFocus
+        />
+        <CampoMultiplicidad
+          id="edit-mult-destino"
+          etiqueta={`Multiplicidad en ${nombreDestino ?? 'el destino'}`}
+          valor={destino}
+          onCambiar={setDestino}
+        />
 
-          <label className={styles.label} htmlFor="edit-mult-destino">
-            Extremo destino
-          </label>
-          <input
-            id="edit-mult-destino"
-            className={styles.input}
-            value={destino}
-            onChange={(event) => setDestino(event.target.value)}
-          />
-
+        <div className={styles.campo}>
           <label className={styles.label} htmlFor="edit-rel-nombre">
-            Nombre de la relación (opcional)
+            Nombre de la relación <span className={styles.opcional}>(opcional)</span>
           </label>
           <input
             id="edit-rel-nombre"
@@ -90,40 +88,39 @@ function EditarRelacionModal({ relacion, onConfirmar, onCancelar }) {
             value={nombre}
             onChange={(event) => setNombre(event.target.value)}
           />
+        </div>
 
-          {tipo === 'asociacion' && (
-            <>
-              <label className={styles.label} htmlFor="edit-rel-clase-asociacion">
-                Clase de asociación (opcional)
-              </label>
-              <select
-                id="edit-rel-clase-asociacion"
-                className={styles.input}
-                value={claseAsociacion}
-                onChange={(event) => setClaseAsociacion(event.target.value)}
-              >
-                <option value="">Ninguna</option>
-                {candidatas.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.data.nombre}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          <div className={styles.acciones}>
-            <button type="button" className={styles.botonCancelar} onClick={onCancelar}>
-              Cancelar
-            </button>
-            <button type="submit" className={styles.botonGuardar}>
-              Guardar
-            </button>
+        {tipo === 'asociacion' && (
+          <div className={styles.campo}>
+            <label className={styles.label} htmlFor="edit-rel-clase-asociacion">
+              Clase de asociación <span className={styles.opcional}>(opcional)</span>
+            </label>
+            <select
+              id="edit-rel-clase-asociacion"
+              className={styles.input}
+              value={claseAsociacion}
+              onChange={(event) => setClaseAsociacion(event.target.value)}
+            >
+              <option value="">Ninguna</option>
+              {candidatas.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.data.nombre}
+                </option>
+              ))}
+            </select>
           </div>
-        </form>
-      </div>
-    </div>,
-    document.body
+        )}
+
+        <div className={styles.acciones}>
+          <button type="button" className={styles.botonCancelar} onClick={onCancelar}>
+            Cancelar
+          </button>
+          <button type="submit" className={styles.botonPrimario}>
+            Guardar
+          </button>
+        </div>
+      </form>
+    </ModalPizarra>
   )
 }
 

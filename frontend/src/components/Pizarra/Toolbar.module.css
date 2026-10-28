@@ -1,58 +1,84 @@
 .barra {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 15;
+  max-width: calc(100% - 32px);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 12px;
+  background: var(--ui-tarjeta);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.botonIcono,
+.boton {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-texto-2);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.botonIcono {
+  width: 36px;
+  padding: 0;
+  font-size: 17px;
 }
 
 .boton {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  padding: 6px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  padding: 0 12px;
 }
 
-.boton:hover {
-  border-color: var(--accent);
-  color: var(--text-main);
+.boton i {
+  font-size: 15px;
 }
 
-.boton:disabled {
-  opacity: 0.4;
+.botonIcono:hover:not(:disabled),
+.boton:hover,
+.botonIcono:focus-visible,
+.boton:focus-visible {
+  outline: none;
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.botonIcono:disabled {
+  opacity: 0.35;
   cursor: default;
-  border-color: var(--border);
-  color: var(--text-muted);
+}
+
+.activo,
+.activo:hover {
+  background: #0f2a20;
+  border-color: var(--ui-primario);
+  color: #6ee7b7;
 }
 
 .separador {
   width: 1px;
-  align-self: stretch;
-  background: var(--border);
-}
-
-.activo {
-  background: rgba(76, 141, 255, 0.15);
-  border-color: var(--accent);
-  color: var(--text-main);
-}
-
-.etiqueta {
-  white-space: nowrap;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--ui-borde);
 }
 
 .ayuda {
-  display: flex;
-  align-items: center;
-  margin-left: 8px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  padding: 0 10px;
+  color: var(--ui-primario);
+  font-size: 13px;
+  white-space: nowrap;
 }

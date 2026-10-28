@@ -1,0 +1,131 @@
+.panel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  width: 280px;
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 14px;
+  background: var(--ui-tarjeta);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.titulo {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-texto-3);
+}
+
+.botonCerrar {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-texto-2);
+  font-size: 16px;
+}
+
+.botonCerrar:hover {
+  background: #1e2230;
+  color: var(--ui-texto);
+}
+
+.buscador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 8px;
+  background: var(--ui-fondo);
+  color: var(--ui-texto-3);
+}
+
+.buscador:focus-within {
+  border-color: var(--ui-primario);
+}
+
+.buscador input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ui-texto);
+  font-size: 14px;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ui-texto);
+  font-size: 14px;
+  text-align: left;
+}
+
+.item:hover {
+  background: #1e2230;
+}
+
+.punto {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #6b7280;
+}
+
+.nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quien {
+  font-size: 12px;
+  color: var(--ui-texto-3);
+}
+
+.vacio {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--ui-texto-3);
+}

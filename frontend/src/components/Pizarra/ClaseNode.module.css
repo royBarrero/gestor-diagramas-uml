@@ -1,129 +1,261 @@
 .nodo {
-  min-width: 200px;
+  min-width: 240px;
   position: relative;
 }
 
 .contenido {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background: var(--ui-tarjeta);
+  border: 1.5px solid var(--ui-borde);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.seleccionada {
+  border-color: var(--ui-primario);
+  box-shadow:
+    0 0 0 4px rgba(52, 211, 153, 0.18),
+    0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
 .origen {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
+  border-color: var(--ui-primario);
+  box-shadow: 0 0 0 3px var(--ui-primario);
 }
 
 .tagPresencia {
   position: absolute;
-  top: -24px;
-  left: 0;
+  top: -13px;
+  left: 14px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid;
+  border-radius: 999px;
+  background: var(--ui-barra);
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
   z-index: 5;
 }
 
+.punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #6b7280;
+}
+
+.seleccionada .header .punto {
+  background: var(--ui-primario);
+}
+
 .handle {
-  width: 10px;
-  height: 10px;
-  background: var(--accent);
-  border: 1px solid var(--bg-main);
+  width: 12px;
+  height: 12px;
+  background: var(--ui-primario);
+  border: 2px solid var(--ui-tarjeta);
+  cursor: crosshair;
+  transition: scale 0.12s, box-shadow 0.12s;
+}
+
+/* Zona de agarre invisible de ~28px alrededor del punto: al ser parte del
+   handle, React Flow la toma como el mismo punto de conexión. */
+.handle::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+}
+
+/* Se usa `scale` (no `transform`) porque React Flow posiciona el handle con
+   transform: translate(...) y lo pisaría. */
+.nodo:hover .handle {
+  scale: 1.15;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18);
+}
+
+.nodo .handle:hover {
+  scale: 1.4;
+  box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.3);
 }
 
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  background: rgba(76, 141, 255, 0.1);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-main);
+  gap: 10px;
+  padding: 16px 14px 12px;
+  border-bottom: 1px solid var(--ui-borde);
 }
 
 .nombre {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ui-texto);
 }
 
 .inputNombre {
   flex: 1;
-  background: var(--bg-main);
-  border: 1px solid var(--accent);
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  background: var(--ui-fondo);
+  border: 1px solid var(--ui-primario);
+  border-radius: 6px;
+  outline: none;
+  color: var(--ui-texto);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.estereotipo {
+  flex-shrink: 0;
+  padding: 3px 6px;
   border-radius: 4px;
-  color: var(--text-main);
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 14px;
-  padding: 2px 6px;
-}
-
-.botonEliminar {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-}
-
-.botonEliminar:hover {
-  color: #e5484d;
+  background: #1e2230;
+  color: var(--ui-texto-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 .seccion {
-  padding: 6px 0;
-  min-height: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 6px;
 }
 
 .separador {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ui-borde);
 }
 
 .fila {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 12px;
+  min-height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-main);
+  font-size: 13px;
+  color: var(--ui-texto);
 }
 
-.simbolo {
-  color: var(--accent);
-  width: 12px;
-  flex-shrink: 0;
+.fila:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.texto {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.textoFila {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: text;
 }
 
-.inputFila {
-  flex: 1;
-  background: var(--bg-main);
-  border: 1px solid var(--accent);
+.simbolo {
+  flex-shrink: 0;
+  color: var(--ui-primario);
+}
+
+.nombreItem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tipo {
+  flex-shrink: 0;
+  padding-left: 8px;
+  color: var(--ui-texto-3);
+}
+
+.tipoValor {
+  color: var(--ui-tipo);
+}
+
+.acciones {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  display: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #2c3140;
+  border-radius: 6px;
+  background: #1e2230;
+}
+
+.fila:hover .acciones {
+  display: flex;
+}
+
+.acciones button {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
   border-radius: 4px;
-  color: var(--text-main);
+  background: transparent;
+  color: var(--ui-texto-2);
+  font-size: 13px;
+}
+
+.acciones button:hover:not(:disabled) {
+  background: #2c3140;
+  color: #fff;
+}
+
+.acciones button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.input {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  background: var(--ui-fondo);
+  border: 1px solid var(--ui-primario);
+  border-radius: 6px;
+  outline: none;
+  color: var(--ui-texto);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.botonAgregar {
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #6b7280;
   font-family: var(--font-mono);
   font-size: 12px;
-  padding: 2px 4px;
+  text-align: left;
+}
+
+.botonAgregar:hover {
+  background: rgba(52, 211, 153, 0.08);
+  color: var(--ui-primario);
 }

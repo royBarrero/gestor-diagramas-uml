@@ -2,39 +2,86 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--ui-fondo);
+  color: var(--ui-texto);
 }
 
 .header {
+  height: 56px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--ui-barra);
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.headerIzquierda,
+.headerDerecha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.headerDerecha {
   flex-shrink: 0;
 }
 
 .titulo {
-  font-size: 16px;
-  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui-texto);
+}
+
+.tituloProyecto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+  color: var(--ui-texto-3);
+}
+
+.tituloSeparador {
+  color: #4b5263;
+  font-weight: 400;
 }
 
 .estado {
-  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--ui-texto-3);
 }
 
-.headerIzquierda {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+.iconoGuardado {
+  color: var(--ui-primario);
 }
 
-.headerDerecha {
-  display: flex;
+.estadoError {
+  color: var(--ui-error);
+}
+
+.estadoConexion {
+  height: 30px;
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
+  padding: 0 12px;
+  border: 1px solid #6b4a12;
+  border-radius: 999px;
+  background: #241a08;
+  color: #fcd34d;
+  font-size: 13px;
 }
 
 .colaboradores {
@@ -42,75 +89,61 @@
 }
 
 .colaboradorAvatar {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  margin-left: -8px;
+  border: 2px solid var(--ui-barra);
   border-radius: 50%;
-  background: rgba(76, 141, 255, 0.15);
-  border: 1px solid var(--accent);
-  color: var(--text-main);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  margin-left: -6px;
+  color: #0e1017;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .colaboradores .colaboradorAvatar:first-child {
   margin-left: 0;
 }
 
-.estadoConexion {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: #e0a030;
+.separadorHeader {
+  width: 1px;
+  height: 24px;
+  background: var(--ui-borde);
 }
 
-.botonCircular {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
+.botonIcono {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(76, 141, 255, 0.12);
-  border: 1px solid transparent;
-  color: var(--accent);
-  font-size: 16px;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+  text-decoration: none;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.botonCircular:hover {
-  border-color: var(--accent);
+.botonIcono:hover:not(:disabled) {
+  background: #1e2230;
+  color: var(--ui-texto);
 }
 
-.botonCircular:disabled {
+.botonIcono:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.botonCircularActivo {
-  background: rgba(224, 92, 92, 0.15);
-  color: #e05c5c;
-}
-
-.estadoVoz {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-muted);
-  max-width: 260px;
-}
-
-/* El estado del comando de voz incluye la transcripción: se corta a 3 líneas
-   (el texto completo queda en el title). */
-.estadoVozLargo {
-  max-width: 360px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.botonGrabando,
+.botonGrabando:hover:not(:disabled) {
+  background: var(--ui-error-bg);
+  border-color: var(--ui-error);
+  color: var(--ui-error);
 }
 
 .cuerpo {
@@ -126,13 +159,21 @@
   min-width: 0;
 }
 
+.zonaLienzo {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+
 .canvas {
   flex: 1;
   min-height: 0;
+  background: var(--ui-fondo);
 }
 
 .error {
   padding: 32px;
-  color: var(--text-muted);
+  color: var(--ui-texto-3);
   font-family: var(--font-mono);
 }

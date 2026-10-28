@@ -197,9 +197,11 @@ function RelacionEdge({ id, source, target, data, selected }) {
     }
   }
 
+  // Seleccionada se pinta en verde, igual que la clase seleccionada.
+  const color = selected ? 'var(--ui-primario)' : 'var(--ui-texto-3)'
   const trazoEstilo = {
-    stroke: 'var(--text-muted)',
-    strokeWidth: 1.5,
+    stroke: color,
+    strokeWidth: selected ? 2 : 1.5,
     strokeDasharray: tipo === 'dependencia' ? '6 4' : undefined,
   }
 
@@ -232,7 +234,7 @@ function RelacionEdge({ id, source, target, data, selected }) {
         <path
           d={`M ${labelNombreX},${labelNombreY} L ${bordeAsociacion.x},${bordeAsociacion.y}`}
           fill="none"
-          stroke="var(--text-muted)"
+          stroke={color}
           strokeWidth={1.5}
           strokeDasharray="6 4"
         />
@@ -242,7 +244,7 @@ function RelacionEdge({ id, source, target, data, selected }) {
         <polyline
           points={flechaPuntos(targetX, targetY, angulo)}
           fill="none"
-          stroke="var(--text-muted)"
+          stroke={color}
           strokeWidth={1.5}
         />
       )}
@@ -250,8 +252,8 @@ function RelacionEdge({ id, source, target, data, selected }) {
       {tipo === 'herencia' && (
         <polygon
           points={trianguloPuntos(targetX, targetY, angulo)}
-          fill="var(--bg-panel)"
-          stroke="var(--text-muted)"
+          fill="var(--ui-fondo)"
+          stroke={color}
           strokeWidth={1.5}
         />
       )}
@@ -259,8 +261,8 @@ function RelacionEdge({ id, source, target, data, selected }) {
       {tipo === 'agregacion' && (
         <polygon
           points={romboPuntos(sourceX, sourceY, angulo)}
-          fill="var(--bg-panel)"
-          stroke="var(--text-muted)"
+          fill="var(--ui-fondo)"
+          stroke={color}
           strokeWidth={1.5}
         />
       )}
@@ -268,8 +270,8 @@ function RelacionEdge({ id, source, target, data, selected }) {
       {tipo === 'composicion' && (
         <polygon
           points={romboPuntos(sourceX, sourceY, angulo)}
-          fill="var(--text-muted)"
-          stroke="var(--text-muted)"
+          fill={color}
+          stroke={color}
           strokeWidth={1.5}
         />
       )}

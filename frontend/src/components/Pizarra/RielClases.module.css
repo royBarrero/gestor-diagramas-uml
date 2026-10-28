@@ -1,0 +1,55 @@
+.riel {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--ui-barra);
+  border-right: 1px solid var(--ui-borde);
+}
+
+.boton {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.boton:hover,
+.boton:focus-visible {
+  outline: none;
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.activo,
+.activo:hover,
+.activo:focus-visible {
+  background: #0f2a20;
+  border-color: var(--ui-primario);
+  color: #6ee7b7;
+}
+
+.primario,
+.primario:hover,
+.primario:focus-visible {
+  background: var(--ui-primario);
+  border-color: var(--ui-primario);
+  color: var(--ui-primario-texto);
+}
+
+.primario:hover {
+  filter: brightness(1.08);
+}

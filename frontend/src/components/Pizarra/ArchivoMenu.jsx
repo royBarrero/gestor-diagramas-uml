@@ -24,7 +24,7 @@ function ArchivoMenu({ onExportar, onImportar }) {
   return (
     <div className={styles.contenedor} ref={contenedorRef}>
       <button type="button" className={styles.trigger} onClick={() => setAbierto((a) => !a)} title="Archivo">
-        <i className="ti ti-menu-2" /> Archivo <i className="ti ti-chevron-down" />
+        Archivo <i className="ti ti-chevron-down" />
       </button>
 
       {abierto && (

@@ -29,7 +29,7 @@ export function PizarraProvider({ contenidoInicial, children }) {
   const [tipoRelacionActivo, setTipoRelacionActivo] = useState(null)
   const [origenConexionId, setOrigenConexionId] = useState(null)
   const [pendienteConexion, setPendienteConexion] = useState(null)
-  const [panelClasesAbierto, setPanelClasesAbierto] = useState(true)
+  const [listaClasesAbierta, setListaClasesAbierta] = useState(false)
   const [relacionAEditar, setRelacionAEditar] = useState(null)
 
   const claseSeleccionada = nodes.find((n) => n.id === seleccionId) ?? null
@@ -180,7 +180,8 @@ export function PizarraProvider({ contenidoInicial, children }) {
 
   const seleccionarClase = useCallback((id) => setSeleccionId(id), [])
 
-  const alternarPanelClases = useCallback(() => setPanelClasesAbierto((abierto) => !abierto), [])
+  const alternarListaClases = useCallback(() => setListaClasesAbierta((abierta) => !abierta), [])
+  const cerrarListaClases = useCallback(() => setListaClasesAbierta(false), [])
 
   const agregarClase = useCallback(() => {
     const id = generarId('clase')
@@ -215,12 +216,12 @@ export function PizarraProvider({ contenidoInicial, children }) {
   )
 
   const agregarCampoItem = useCallback(
-    (claseId, campo) => {
+    (claseId, campo, valores = {}) => {
       const nuevoId = generarId(campo)
       const nuevoItem =
         campo === 'atributos'
-          ? { id: nuevoId, visibilidad: 'publico', tipo: '', texto: '' }
-          : { id: nuevoId, visibilidad: 'publico', texto: '' }
+          ? { id: nuevoId, visibilidad: 'publico', tipo: '', texto: '', ...valores }
+          : { id: nuevoId, visibilidad: 'publico', texto: '', ...valores }
       registrar()
       setNodes((nds) =>
         nds.map((n) =>
@@ -419,8 +420,9 @@ export function PizarraProvider({ contenidoInicial, children }) {
     puedeRehacer: estadoHistorial.puedeRehacer,
     iniciarArrastre,
     finalizarArrastre,
-    panelClasesAbierto,
-    alternarPanelClases,
+    listaClasesAbierta,
+    alternarListaClases,
+    cerrarListaClases,
   }
 
   return <PizarraContext.Provider value={value}>{children}</PizarraContext.Provider>
