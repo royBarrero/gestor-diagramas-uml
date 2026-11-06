@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { api } from '../services/api'
+import {
+  calcularCambios,
+  contenidoParaEnviar,
+  firmasDe,
+  fusionarRemoto,
+  marcarSinConfirmar,
+} from '../utils/sincronizacionDiagrama'
 import { useDebouncedEffect } from './useDebouncedEffect'
 
 export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -8,64 +15,100 @@ export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000
 export function useColaboracion(diagramaId, { nodes, edges, reemplazarDiagrama, seleccionId }) {
   const [colaboradores, setColaboradores] = useState([])
   const [estadoConexion, setEstadoConexion] = useState('conectando')
+  const [socket, setSocket] = useState(null)
   const socketRef = useRef(null)
-  const aplicandoRemotoRef = useRef(false)
-  const primeraEmisionRef = useRef(true)
+  // Última versión sincronizada de cada elemento: lo que difiere de ahí es una
+  // edición local que todavía hay que enviar.
+  const baseRef = useRef(null)
+  const localRef = useRef({ nodes, edges })
+  const sinConfirmarRef = useRef(new Set())
+  const seleccionRef = useRef(seleccionId)
+
+  useEffect(() => {
+    localRef.current = { nodes, edges }
+  }, [nodes, edges])
 
   useEffect(() => {
     if (!diagramaId) return undefined
 
-    primeraEmisionRef.current = true
-    const socket = io(SOCKET_URL, {
+    baseRef.current = firmasDe(nodes, edges)
+
+    function aplicarRemoto(contenido) {
+      const fusion = fusionarRemoto(baseRef.current, localRef.current, contenido)
+      baseRef.current = fusion.base
+      // Sin esperar al render: el próximo mensaje puede llegar antes.
+      localRef.current = { nodes: fusion.nodes, edges: fusion.edges }
+      reemplazarDiagrama(localRef.current)
+    }
+
+    const conexion = io(SOCKET_URL, {
       auth: { token: localStorage.getItem('access_token') },
       query: { diagramaId },
     })
-    socketRef.current = socket
+    socketRef.current = conexion
+    // Se publica como estado para que useChatGrupal se suscriba: los efectos de
+    // los componentes hijos corren antes que este, así que un ref no alcanza.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSocket(conexion)
 
-    socket.on('connect', () => {
+    conexion.on('connect', () => {
       setEstadoConexion('conectado')
-      api.get(`/diagramas/${diagramaId}`).then(({ data }) => {
-        aplicandoRemotoRef.current = true
-        reemplazarDiagrama(data.contenido)
-      })
+      // Cada conexión es un socket nuevo para el servidor: hay que volver a
+      // decirle qué clase se está editando.
+      if (seleccionRef.current) conexion.emit('seleccion', { claseId: seleccionRef.current })
+      api.get(`/diagramas/${diagramaId}`).then(({ data }) => aplicarRemoto(data.contenido))
     })
 
-    socket.on('disconnect', () => setEstadoConexion('desconectado'))
-    socket.io.on('reconnect_attempt', () => setEstadoConexion('reconectando'))
-
-    socket.on('colaboradores', (lista) => setColaboradores(lista))
-
-    socket.on('cambio_diagrama', (contenido) => {
-      aplicandoRemotoRef.current = true
-      reemplazarDiagrama(contenido)
+    conexion.on('disconnect', () => {
+      setEstadoConexion('desconectado')
+      // La red pudo caerse antes de que el socket se enterara: lo que salió en ese
+      // lapso no llegó, y se reenvía al reconectar.
+      sinConfirmarRef.current.forEach((cambios) => marcarSinConfirmar(baseRef.current, cambios))
+      sinConfirmarRef.current.clear()
     })
+    conexion.io.on('reconnect_attempt', () => setEstadoConexion('reconectando'))
+    // Si el servidor rechazó la conexión (por ejemplo, token vencido), socket.io
+    // no reintenta solo; ante un fallo de red sigue con reconnect_attempt.
+    conexion.on('connect_error', () => {
+      if (!conexion.active) setEstadoConexion('rechazado')
+    })
+
+    conexion.on('colaboradores', (lista) => setColaboradores(lista))
+
+    conexion.on('cambio_diagrama', aplicarRemoto)
 
     return () => {
-      socket.disconnect()
+      conexion.disconnect()
       socketRef.current = null
+      setSocket(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagramaId])
 
   useEffect(() => {
+    seleccionRef.current = seleccionId
     socketRef.current?.emit('seleccion', { claseId: seleccionId })
   }, [seleccionId])
 
   useDebouncedEffect(
     () => {
-      if (primeraEmisionRef.current) {
-        primeraEmisionRef.current = false
-        return
-      }
-      if (aplicandoRemotoRef.current) {
-        aplicandoRemotoRef.current = false
-        return
-      }
-      socketRef.current?.emit('cambio_diagrama', { nodes, edges })
+      // Sin conexión no se envía: la edición queda pendiente y, al reconectar, se
+      // fusiona con lo que trae el servidor.
+      if (!socketRef.current?.connected) return
+      // Se compara el contenido, no "de dónde vino": así no se reenvía lo recibido
+      // ni la selección, y una edición propia que cae en el mismo debounce que un
+      // cambio remoto igual sale.
+      const resultado = calcularCambios(baseRef.current, nodes, edges)
+      if (!resultado) return
+      baseRef.current = resultado.base
+      sinConfirmarRef.current.add(resultado.cambios)
+      socketRef.current.emit('cambio_diagrama', contenidoParaEnviar(nodes, edges, resultado.cambios), () =>
+        sinConfirmarRef.current.delete(resultado.cambios)
+      )
     },
     [nodes, edges],
     400
   )
 
-  return { colaboradores, estadoConexion }
+  return { colaboradores, estadoConexion, socket }
 }

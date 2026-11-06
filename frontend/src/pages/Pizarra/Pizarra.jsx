@@ -12,9 +12,12 @@ import { useDigitalizacionImagen } from '../../hooks/useDigitalizacionImagen'
 import { useExportarDiagrama } from '../../hooks/useExportarDiagrama'
 import { useExportarImagen } from '../../hooks/useExportarImagen'
 import { useImportarDiagrama } from '../../hooks/useImportarDiagrama'
+import { useSugerenciasIA } from '../../hooks/useSugerenciasIA'
 import ClaseNode from '../../components/Pizarra/ClaseNode'
 import RelacionEdge from '../../components/Pizarra/RelacionEdge'
 import Toolbar from '../../components/Pizarra/Toolbar'
+import ChatGrupal from '../../components/Pizarra/ChatGrupal'
+import AvisoSugerencia from '../../components/Pizarra/AvisoSugerencia'
 import RielClases from '../../components/Pizarra/RielClases'
 import ListaClases from '../../components/Pizarra/ListaClases'
 import InspectorClase from '../../components/Pizarra/InspectorClase'
@@ -27,13 +30,11 @@ import ImportarModal from '../../components/Pizarra/ImportarModal'
 import ArchivoMenu from '../../components/Pizarra/ArchivoMenu'
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
 import ErrorBoundaryLienzo from '../../components/Pizarra/ErrorBoundaryLienzo'
+import { colorPorUsuario } from '../../utils/avatar'
 import styles from './Pizarra.module.css'
 
 const tiposDeNodo = { clase: ClaseNode }
 const tiposDeEdge = { relacion: RelacionEdge }
-
-const PALETA_COLABORADORES = ['#4c8dff', '#e0a030', '#33b679', '#e05c5c', '#a06ce0', '#3fbfbf']
-const colorPorUsuario = (id) => PALETA_COLABORADORES[id % PALETA_COLABORADORES.length]
 
 // Traduce el estado de voz, foto, importación y exportación a los avisos que
 // se muestran abajo al centro del lienzo ({ id, tipo, texto, detalle }).
@@ -77,7 +78,7 @@ function armarAvisos({
   return avisos
 }
 
-function LienzoPizarra({ diagramaId, diagramaNombre, proyectoNombre }) {
+function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre }) {
   const {
     nodes,
     edges,
@@ -112,7 +113,7 @@ function LienzoPizarra({ diagramaId, diagramaNombre, proyectoNombre }) {
 
   const [estadoGuardado, setEstadoGuardado] = useState('guardado')
 
-  const { colaboradores, estadoConexion } = useColaboracion(diagramaId, {
+  const { colaboradores, estadoConexion, socket } = useColaboracion(diagramaId, {
     nodes,
     edges,
     reemplazarDiagrama,
@@ -174,13 +175,53 @@ function LienzoPizarra({ diagramaId, diagramaNombre, proyectoNombre }) {
 
   const otrosColaboradores = colaboradores.filter((c) => c.id !== usuario?.id)
 
-  const presenciaPorClase = {}
-  otrosColaboradores.forEach((c) => {
-    if (c.claseId) presenciaPorClase[c.claseId] = { nombre: c.nombre, color: colorPorUsuario(c.id) }
-  })
-  const nodesConPresencia = nodes.map((n) =>
-    presenciaPorClase[n.id] ? { ...n, data: { ...n.data, presencia: presenciaPorClase[n.id] } } : n
+  const [chatAbierto, setChatAbierto] = useState(false)
+  const [mensajeAResaltar, setMensajeAResaltar] = useState(null)
+  const {
+    marcas: marcasSugerencia,
+    aviso,
+    abrirAviso,
+    cerrarAviso,
+    ignorar,
+    pausarAviso,
+    silenciado,
+    alternarSilencio,
+  } = useSugerenciasIA({ socket, proyectoId, usuarioId: usuario?.id, nodes, edges, seleccionId })
+
+  function verSugerenciaEnChat(mensajeId) {
+    setChatAbierto(true)
+    setMensajeAResaltar({ id: mensajeId })
+  }
+
+  const presenciasPorClase = {}
+  function agregarPresencia(claseId, presencia) {
+    if (claseId) (presenciasPorClase[claseId] ??= []).push(presencia)
+  }
+  otrosColaboradores.forEach((c) =>
+    agregarPresencia(c.claseId, { id: c.id, nombre: c.nombre, color: colorPorUsuario(c.id), esYo: false })
   )
+  // La propia selección se toma del estado local: no espera la vuelta del servidor.
+  if (usuario) agregarPresencia(seleccionId, { id: usuario.id, color: colorPorUsuario(usuario.id), esYo: true })
+
+  function datosSugerencia(claseId) {
+    const marca = marcasSugerencia[claseId]
+    if (!marca) return undefined
+    const esParaMi = marca.destinoId === usuario?.id
+    return {
+      esParaMi,
+      destinoNombre: marca.destinoNombre,
+      onAbrir: esParaMi ? () => abrirAviso(claseId) : () => verSugerenciaEnChat(marca.mensajeId),
+    }
+  }
+
+  // Estos datos solo se agregan a lo que se dibuja: `nodes` es lo que se guarda
+  // y se envía a los demás, y no los lleva.
+  const nodesConPresencia = nodes.map((n) => {
+    const presencias = presenciasPorClase[n.id]
+    const sugerencia = datosSugerencia(n.id)
+    return presencias || sugerencia ? { ...n, data: { ...n.data, presencias, sugerencia } } : n
+  })
+  const nodoAviso = aviso ? nodes.find((n) => n.id === aviso.claseId) : null
 
   useDebouncedEffect(
     () => {
@@ -289,6 +330,17 @@ function LienzoPizarra({ diagramaId, diagramaNombre, proyectoNombre }) {
 
           <button
             type="button"
+            className={`${styles.botonIcono} ${silenciado ? '' : styles.botonIaActiva}`}
+            onClick={alternarSilencio}
+            aria-pressed={silenciado}
+            aria-label="Silenciar IA"
+            title={silenciado ? 'IA silenciada: tocá para volver a recibir sugerencias' : 'Silenciar IA'}
+          >
+            <i className={`ti ${silenciado ? 'ti-bell-off' : 'ti-sparkles'}`} />
+          </button>
+
+          <button
+            type="button"
             className={`${styles.botonIcono} ${estadoVoz === 'grabando' ? styles.botonGrabando : ''}`}
             onClick={alternarGrabacion}
             disabled={estadoVoz === 'procesando'}
@@ -367,8 +419,29 @@ function LienzoPizarra({ diagramaId, diagramaNombre, proyectoNombre }) {
             <AvisosEstado avisos={avisos} />
             {listaClasesAbierta && <ListaClases nodos={nodesConPresencia} />}
             {claseSeleccionada && !tipoRelacionActivo && <InspectorClase key={claseSeleccionada.id} />}
+            {nodoAviso && (
+              <AvisoSugerencia
+                aviso={aviso}
+                nodo={nodoAviso}
+                onVerEnChat={() => {
+                  cerrarAviso()
+                  verSugerenciaEnChat(aviso.mensajeId)
+                }}
+                onIgnorar={() => ignorar(aviso.claseId)}
+                onPausar={pausarAviso}
+              />
+            )}
           </div>
         </div>
+
+        <ChatGrupal
+          proyectoId={proyectoId}
+          socket={socket}
+          estadoConexion={estadoConexion}
+          abierto={chatAbierto}
+          onCambiarAbierto={setChatAbierto}
+          resaltar={mensajeAResaltar}
+        />
       </div>
 
       {pendienteConexion && (
@@ -479,7 +552,12 @@ function Pizarra() {
   return (
     <ReactFlowProvider key={diagrama.id}>
       <PizarraProvider contenidoInicial={diagrama.contenido}>
-        <LienzoPizarra diagramaId={diagrama.id} diagramaNombre={diagrama.nombre} proyectoNombre={proyectoNombre} />
+        <LienzoPizarra
+          proyectoId={diagrama.id_proyecto}
+          diagramaId={diagrama.id}
+          diagramaNombre={diagrama.nombre}
+          proyectoNombre={proyectoNombre}
+        />
       </PizarraProvider>
     </ReactFlowProvider>
   )

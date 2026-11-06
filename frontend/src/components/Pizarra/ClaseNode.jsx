@@ -152,17 +152,30 @@ function ClaseNode({ id, data }) {
     esOrigenConexion ? styles.origen : '',
   ].join(' ')
 
+  const presencias = data.presencias ?? []
+  const otraPersona = presencias.find((p) => !p.esYo)
+  const sugerencia = data.sugerencia
+
+  // El botón está dentro del nodo: sin esto, el clic también seleccionaría la clase.
+  function handleClickSugerencia(event) {
+    event.stopPropagation()
+    sugerencia.onAbrir()
+  }
+
   return (
     <div className={styles.nodo}>
-      {data.presencia && (
-        <div
-          className={styles.tagPresencia}
-          style={{ color: data.presencia.color, borderColor: data.presencia.color }}
-        >
-          <span className={styles.punto} style={{ background: data.presencia.color }} />
-          {data.presencia.nombre}
+      {presencias.length > 0 && (
+        <div className={styles.tagsPresencia} data-no-exportar="true">
+          {presencias.map((p) => (
+            <div key={p.id} className={styles.tagPresencia} style={{ color: p.color, borderColor: p.color }}>
+              <span className={styles.punto} style={{ background: p.color }} />
+              {p.esYo ? 'Vos' : `${p.nombre} editando`}
+            </div>
+          ))}
         </div>
       )}
+
+      {sugerencia?.esParaMi && <div className={styles.marcoAlerta} data-no-exportar="true" />}
 
       <Handle id="top" type="source" position={Position.Top} className={styles.handle} />
       <Handle id="right" type="source" position={Position.Right} className={styles.handle} />
@@ -171,13 +184,10 @@ function ClaseNode({ id, data }) {
 
       <div
         className={clasesContenido}
-        style={data.presencia && !seleccionada ? { borderColor: data.presencia.color } : undefined}
+        style={otraPersona && !seleccionada ? { borderColor: otraPersona.color } : undefined}
       >
         <div className={styles.header} onDoubleClick={() => setEditandoNombre(true)}>
-          <span
-            className={styles.punto}
-            style={data.presencia ? { background: data.presencia.color } : undefined}
-          />
+          <span className={styles.punto} style={otraPersona ? { background: otraPersona.color } : undefined} />
           {editandoNombre ? (
             <input
               className={`${styles.inputNombre} nodrag`}
@@ -188,6 +198,33 @@ function ClaseNode({ id, data }) {
             />
           ) : (
             <span className={styles.nombre}>{data.nombre}</span>
+          )}
+          {sugerencia?.esParaMi && (
+            <button
+              type="button"
+              className={`${styles.botonAlerta} nodrag`}
+              data-no-exportar="true"
+              onClick={handleClickSugerencia}
+              onDoubleClick={(event) => event.stopPropagation()}
+              title="Ver la sugerencia de la IA"
+              aria-label="Ver la sugerencia de la IA"
+            >
+              <i className="ti ti-alert-triangle" />
+            </button>
+          )}
+          {sugerencia && !sugerencia.esParaMi && (
+            <button
+              type="button"
+              className={`${styles.botonSugerenciaAjena} nodrag`}
+              data-no-exportar="true"
+              onClick={handleClickSugerencia}
+              onDoubleClick={(event) => event.stopPropagation()}
+              title={`Sugerencia de la IA para ${sugerencia.destinoNombre}`}
+              aria-label={`Sugerencia de la IA para ${sugerencia.destinoNombre}`}
+            >
+              <i className="ti ti-sparkles" />
+              {sugerencia.destinoNombre?.[0]?.toUpperCase() ?? '?'}
+            </button>
           )}
           <span className={styles.estereotipo}>ENTITY</span>
         </div>

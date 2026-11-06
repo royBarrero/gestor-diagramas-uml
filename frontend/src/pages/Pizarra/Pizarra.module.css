@@ -177,3 +177,8 @@
   color: var(--ui-texto-3);
   font-family: var(--font-mono);
 }
+
+.botonIaActiva,
+.botonIaActiva:hover:not(:disabled) {
+  color: var(--ia-claro);
+}

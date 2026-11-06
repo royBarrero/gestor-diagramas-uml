@@ -18,3 +18,8 @@ export function iniciales(nombre) {
 export function colorAvatar(id) {
   return COLORES_AVATAR[Math.abs(Number(id) || 0) % COLORES_AVATAR.length]
 }
+
+// Color de cada colaborador en la pizarra (avatares de presencia y chat).
+const PALETA_COLABORADORES = ['#4c8dff', '#e0a030', '#33b679', '#e05c5c', '#a06ce0', '#3fbfbf']
+
+export const colorPorUsuario = (id) => PALETA_COLABORADORES[id % PALETA_COLABORADORES.length]

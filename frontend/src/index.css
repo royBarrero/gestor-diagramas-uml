@@ -23,6 +23,7 @@
   --ui-error-bg: var(--rol-admin-bg);
   --ui-error: var(--rol-admin-fg);
   --ui-tipo: #7dd3fc;
+  --ui-alerta: #f5a524;
 
   /* Color de la IA (agente del chat grupal, sugerencias) */
   --ia: #22d3ee;

@@ -1,0 +1,396 @@
+/* ---------- Riel (chat oculto) ---------- */
+
+.riel {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  background: var(--ui-barra);
+  border-left: 1px solid var(--ui-borde);
+}
+
+.botonRiel {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+}
+
+.botonRiel:hover,
+.botonRiel:focus-visible {
+  outline: none;
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.contador {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ia);
+  color: #04222a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- Panel ---------- */
+
+.panel {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ui-barra);
+  border-left: 1px solid var(--ui-borde);
+}
+
+.header {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-texto);
+}
+
+.botonIcono {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+}
+
+.botonIcono:hover {
+  background: #1e2230;
+  color: var(--ui-texto);
+}
+
+.aviso {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #6b4a12;
+  background: #241a08;
+  color: #fcd34d;
+  font-size: 13px;
+}
+
+/* ---------- Mensajes ---------- */
+
+.mensajes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.avatar,
+.avatarAgente {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatar {
+  color: #0e1017;
+}
+
+.avatarAgente {
+  background: var(--ia-bg);
+  border: 1px solid var(--ia-borde);
+  color: var(--ia);
+  font-size: 15px;
+}
+
+.contenido,
+.tarjetaAgente {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tarjetaAgente {
+  padding: 10px 12px;
+  border: 1px solid var(--ia-borde);
+  border-radius: 4px 12px 12px 12px;
+  background: var(--ia-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ui-texto);
+  overflow-wrap: anywhere;
+}
+
+.encabezado {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ui-texto);
+}
+
+.hora {
+  font-size: 12px;
+  color: var(--ui-texto-3);
+}
+
+.nombreAgente {
+  color: var(--ia-claro);
+}
+
+.destino {
+  font-size: 12px;
+  color: var(--ui-texto-2);
+}
+
+.destinoNombre {
+  font-weight: 600;
+  color: var(--ia-claro);
+}
+
+.texto {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ui-texto);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mencion {
+  font-weight: 600;
+  color: var(--ia);
+}
+
+.mensajeSistema {
+  padding: 8px 12px;
+  border: 1px dashed var(--ui-borde);
+  border-radius: 10px;
+  color: var(--ui-texto-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.vacio {
+  margin: auto 0;
+  color: var(--ui-texto-3);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.errorCarga {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--ui-error);
+  font-size: 13px;
+}
+
+.botonSecundario {
+  align-self: center;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 8px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 13px;
+}
+
+.botonSecundario:hover {
+  background: #1e2230;
+  color: var(--ui-texto);
+}
+
+/* Indicador "escribiendo" */
+.escribiendo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--ia-borde);
+  border-radius: 4px 12px 12px 12px;
+  background: var(--ia-bg);
+}
+
+.escribiendo span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ia);
+  animation: rebote 1.2s ease-in-out infinite;
+}
+
+.escribiendo span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.escribiendo span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes rebote {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ---------- Caja de texto ---------- */
+
+.form {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--ui-borde);
+}
+
+.errorEnvio {
+  margin: 0 0 8px;
+  color: var(--ui-error);
+  font-size: 13px;
+}
+
+.cajaInput {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  max-height: 120px;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-fondo);
+  color: var(--ui-texto);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ui-primario);
+}
+
+.botonEnviar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--ui-primario);
+  color: var(--ui-primario-texto);
+  font-size: 18px;
+}
+
+.botonEnviar:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .escribiendo span {
+    animation: none;
+  }
+}
+
+/* ---------- Celular: cubre el lienzo y queda sobre el botón del asistente ---------- */
+
+@media (max-width: 600px) {
+  .panel {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 160;
+    width: auto;
+    border-left: none;
+  }
+}
+
+.contenedorMensaje {
+  border-radius: 12px;
+}
+
+.resaltado {
+  animation: resaltarMensaje 2.5s ease-out;
+}
+
+@keyframes resaltarMensaje {
+  0%,
+  40% {
+    box-shadow: 0 0 0 2px var(--ia);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}

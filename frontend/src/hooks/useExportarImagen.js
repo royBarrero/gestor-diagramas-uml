@@ -14,6 +14,8 @@ export function useExportarImagen(elementoRef, nombreDiagrama) {
         backgroundColor: '#0e1017',
         pixelRatio: 2,
         cacheBust: true,
+        // La presencia y las sugerencias no son parte del diagrama.
+        filter: (nodo) => nodo.dataset?.noExportar === undefined,
       })
       const blob = await (await fetch(dataUrl)).blob()
       descargarBlob(blob, `${slugificarNombre(nombreDiagrama)}.png`)

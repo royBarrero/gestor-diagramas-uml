@@ -39,18 +39,18 @@ function ListaClases({ nodos }) {
       </label>
 
       <ul className={styles.lista}>
-        {visibles.map((nodo) => (
-          <li key={nodo.id}>
-            <button type="button" className={styles.item} onClick={() => handleClick(nodo)}>
-              <span
-                className={styles.punto}
-                style={nodo.data.presencia ? { background: nodo.data.presencia.color } : undefined}
-              />
-              <span className={styles.nombre}>{nodo.data.nombre}</span>
-              {nodo.data.presencia && <span className={styles.quien}>{nodo.data.presencia.nombre}</span>}
-            </button>
-          </li>
-        ))}
+        {visibles.map((nodo) => {
+          const otros = (nodo.data.presencias ?? []).filter((p) => !p.esYo)
+          return (
+            <li key={nodo.id}>
+              <button type="button" className={styles.item} onClick={() => handleClick(nodo)}>
+                <span className={styles.punto} style={otros[0] ? { background: otros[0].color } : undefined} />
+                <span className={styles.nombre}>{nodo.data.nombre}</span>
+                {otros.length > 0 && <span className={styles.quien}>{otros.map((p) => p.nombre).join(', ')}</span>}
+              </button>
+            </li>
+          )
+        })}
         {visibles.length === 0 && (
           <li className={styles.vacio}>{nodos.length === 0 ? 'Todavía no hay clases.' : 'Ninguna clase coincide.'}</li>
         )}
