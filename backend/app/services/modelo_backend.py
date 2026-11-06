@@ -26,22 +26,8 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
+from app.services.constantes_diagrama import PATRON_MULTIPLICIDAD, TIPOS_DATO_A_JAVA
 from app.services.exportacion_diagrama import validar_contenido
-
-TIPOS_DATO_A_JAVA = {
-    "string": "String",
-    "int": "int",
-    "long": "long",
-    "double": "double",
-    "float": "float",
-    "boolean": "boolean",
-    "char": "char",
-    "date": "LocalDate",
-    "list": "List<String>",
-}
-
-_PATRON_MULTIPLICIDAD = re.compile(r"^\s*(\d+|\*)\s*(?:\.\.\s*(\d+|\*)\s*)?$")
-
 
 class GeneracionInvalidaError(Exception):
     """El diagrama no tiene clases, o tiene algo que impide generar código
@@ -90,7 +76,7 @@ def _endpoint_de(nombre_java: str) -> str:
 def _es_coleccion(multiplicidad: str | None) -> bool:
     if not multiplicidad:
         return False
-    match = _PATRON_MULTIPLICIDAD.match(multiplicidad)
+    match = PATRON_MULTIPLICIDAD.match(multiplicidad)
     if match:
         limite_superior = match.group(2) or match.group(1)
         if limite_superior == "*":

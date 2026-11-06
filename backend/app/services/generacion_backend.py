@@ -68,6 +68,8 @@ def _imports_entidad(entidad: EntidadModelo) -> list[str]:
         imports.add("java.util.ArrayList")
     if any(c.tipo_java == "LocalDate" for c in entidad.campos):
         imports.add("java.time.LocalDate")
+    if any(c.tipo_java == "BigDecimal" for c in entidad.campos):
+        imports.add("java.math.BigDecimal")
     if any(not r.propietaria for r in entidad.relaciones):
         imports.add("com.fasterxml.jackson.annotation.JsonIgnore")
     return sorted(imports)
@@ -205,6 +207,8 @@ def _imports_dto(entidad: EntidadModelo, paquete: str) -> list[str]:
         imports.add("java.util.List")
     if any(c.tipo_java == "LocalDate" for c in entidad.campos):
         imports.add("java.time.LocalDate")
+    if any(c.tipo_java == "BigDecimal" for c in entidad.campos):
+        imports.add("java.math.BigDecimal")
     if any(r.es_coleccion for r in entidad.relaciones):
         imports.add("java.util.stream.Collectors")
     for rel in entidad.relaciones:
@@ -720,7 +724,7 @@ def _valor_ejemplo(tipo_java: str, nombre_campo: str, indice: int) -> str:
         return f"'{etiqueta} ejemplo {indice}'"
     if tipo_java in ("int", "long"):
         return str(indice * 10)
-    if tipo_java in ("double", "float"):
+    if tipo_java in ("double", "float", "BigDecimal"):
         return f"{indice * 10}.5"
     if tipo_java == "boolean":
         return "TRUE" if indice % 2 == 1 else "FALSE"

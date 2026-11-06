@@ -28,3 +28,9 @@ class MensajeProyecto(Base):
     proyecto = relationship("Proyecto", back_populates="mensajes")
     autor = relationship("Usuario", foreign_keys=[id_usuario])
     destino = relationship("Usuario", foreign_keys=[id_usuario_destino])
+    # CU17: la acción cuyos botones lleva este mensaje, y las correcciones pedidas
+    # sobre él si es una sugerencia.
+    accion = relationship(
+        "AccionAgente", foreign_keys="AccionAgente.id_mensaje", uselist=False, viewonly=True
+    )
+    correcciones = relationship("AccionAgente", foreign_keys="AccionAgente.id_sugerencia", viewonly=True)

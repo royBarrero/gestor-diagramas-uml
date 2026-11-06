@@ -12,6 +12,12 @@ class MensajeCrear(BaseModel):
     texto: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 
 
+class AccionOut(BaseModel):
+    id: int
+    estado: str  # "pendiente" | "confirmada" | "cancelada" | "aplicada" | "deshecha"
+    id_solicitante: int
+
+
 class MensajeOut(BaseModel):
     id: int
     id_proyecto: int
@@ -23,6 +29,9 @@ class MensajeOut(BaseModel):
     destino_nombre: str | None = None
     # Id de la clase a la que se refiere una sugerencia del agente (CU16).
     elemento_referenciado: str | None = None
+    # CU17: botones de confirmar/deshacer, y si la sugerencia ya se corrigió.
+    accion: AccionOut | None = None
+    sugerencia_resuelta: bool = False
     created_at: datetime
 
     @classmethod
@@ -37,5 +46,15 @@ class MensajeOut(BaseModel):
             destino_id=mensaje.id_usuario_destino,
             destino_nombre=mensaje.destino.nombre if mensaje.destino else None,
             elemento_referenciado=mensaje.elemento_referenciado,
+            accion=(
+                AccionOut(
+                    id=mensaje.accion.id,
+                    estado=mensaje.accion.estado,
+                    id_solicitante=mensaje.accion.id_solicitante,
+                )
+                if mensaje.accion
+                else None
+            ),
+            sugerencia_resuelta=any(a.estado == "aplicada" for a in mensaje.correcciones),
             created_at=mensaje.created_at,
         )

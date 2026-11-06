@@ -97,7 +97,7 @@ def _describir_items(items) -> str:
     return ", ".join(lineas) or "(ninguno)"
 
 
-def _describir_clase(nodo: dict) -> str:
+def describir_clase(nodo: dict) -> str:
     data = nodo.get("data") or {}
     return (
         f"- {_nombre_clase(nodo)}\n"
@@ -121,12 +121,12 @@ def armar_contexto(
     conectadas = [n for n in nodes if n.get("id") in ids_conectadas]
     resto = [n for n in nodes if n.get("id") != clase_id and n.get("id") not in ids_conectadas]
 
-    bloque_conectadas = "\n".join(_describir_clase(n) for n in conectadas) or "(ninguna)"
+    bloque_conectadas = "\n".join(describir_clase(n) for n in conectadas) or "(ninguna)"
     nombres_resto = ", ".join(_nombre_clase(n) for n in resto[:MAX_NOMBRES_RESTO]) or "(ninguna)"
     return (
         f"Proyecto: {proyecto_nombre}\n"
         f"Descripción: {proyecto_descripcion or '(sin descripción)'}\n\n"
-        f"Clase modificada:\n{_describir_clase(clase)}\n\n"
+        f"Clase modificada:\n{describir_clase(clase)}\n\n"
         f"Clases conectadas:\n{bloque_conectadas}\n\n"
         f"Relaciones de la clase modificada:\n{describir_edges(nodes, relaciones)}\n\n"
         f"Otras clases del diagrama: {nombres_resto}"

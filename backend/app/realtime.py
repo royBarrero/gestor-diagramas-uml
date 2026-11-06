@@ -3,6 +3,8 @@ real sobre un diagrama. Roster de conectados en memoria de proceso — alcanza
 para el único worker de uvicorn con el que corre hoy el backend.
 """
 
+import asyncio
+import logging
 from urllib.parse import parse_qs
 
 import socketio
@@ -14,7 +16,10 @@ from app.core.deps import obtener_usuario_desde_token
 from app.core.permisos import obtener_proyecto_o_404, rol_de_usuario_en_proyecto
 from app.models.diagrama import Diagrama
 from app.schemas.mensaje_proyecto import MensajeOut
+from app.services.documento_vivo import DocumentosVivos
 from app.services.revisor_diagrama import RevisorDiagrama
+
+logger = logging.getLogger(__name__)
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=get_cors_origins())
 
@@ -39,8 +44,48 @@ async def emitir_mensaje(mensaje: MensajeOut) -> None:
     await sio.emit("chat_mensaje", mensaje.model_dump(mode="json"), room=room_proyecto(mensaje.id_proyecto))
 
 
+async def emitir_mensaje_actualizado(mensaje: MensajeOut) -> None:
+    """Un mensaje ya publicado cambió: el estado de sus botones, o se resolvió la sugerencia."""
+    await sio.emit(
+        "chat_mensaje_actualizado", mensaje.model_dump(mode="json"), room=room_proyecto(mensaje.id_proyecto)
+    )
+
+
 # CU16: sugerencias automáticas del agente sobre las clases que se editan.
 revisor = RevisorDiagrama(publicar=emitir_mensaje)
+# CU17: la versión viva de cada diagrama, que no depende del autoguardado de nadie.
+documentos = DocumentosVivos()
+
+
+async def emitir_contenido(diagrama_id: int, contenido: dict, cambios: dict) -> None:
+    """Un cambio hecho en el servidor. Lleva `cambios` como los de cualquier cliente,
+    para que se fusione sin pisar lo que los demás están editando."""
+    await sio.emit("cambio_diagrama", {**contenido, "cambios": cambios}, room=_room(diagrama_id))
+
+
+async def publicar_contenido(proyecto_id: int, diagrama_id: int, usuario_id: int, contenido: dict) -> None:
+    """Un cambio de un endpoint a pedido de un usuario (voz, foto, importación)."""
+    cambios = documentos.reemplazar(proyecto_id, contenido)
+    await emitir_contenido(diagrama_id, contenido, cambios)
+    revisor.registrar_cambio(proyecto_id, usuario_id, contenido)
+
+
+def nombre_en_sala(diagrama_id: int, usuario_id: int) -> str | None:
+    for info in salas.get(_room(diagrama_id), {}).values():
+        if info["id"] == usuario_id:
+            return info["nombre"]
+    return None
+
+
+def _guardar_documento(diagrama_id: int, contenido: dict) -> None:
+    db = SessionLocal()
+    try:
+        diagrama = db.query(Diagrama).filter(Diagrama.id == diagrama_id).first()
+        if diagrama is not None:
+            diagrama.contenido = contenido
+            db.commit()
+    finally:
+        db.close()
 
 
 async def sacar_de_proyecto(usuario_id: int, proyecto_id: int) -> None:
@@ -102,7 +147,13 @@ async def connect(sid, environ, auth):
 
     await sio.save_session(
         sid,
-        {"room": room, "proyecto_id": proyecto_id, "usuario_id": usuario.id, "nombre": usuario.nombre},
+        {
+            "room": room,
+            "diagrama_id": diagrama_id,
+            "proyecto_id": proyecto_id,
+            "usuario_id": usuario.id,
+            "nombre": usuario.nombre,
+        },
     )
     await sio.enter_room(sid, room_usuario(usuario.id))
 
@@ -110,7 +161,7 @@ async def connect(sid, environ, auth):
         await sio.enter_room(sid, room)
         await sio.enter_room(sid, room_proyecto(proyecto_id))
         salas.setdefault(room, {})[sid] = {"id": usuario.id, "nombre": usuario.nombre, "claseId": None}
-        revisor.abrir_proyecto(proyecto_id, contenido)
+        revisor.abrir_proyecto(proyecto_id, documentos.abrir(proyecto_id, contenido))
         await _emitir_colaboradores(room)
 
 
@@ -127,7 +178,21 @@ async def disconnect(sid):
         if not sala:
             salas.pop(room, None)
             revisor.cerrar_proyecto(sesion["proyecto_id"])
+            await _cerrar_documento(room, sesion["proyecto_id"], sesion["diagrama_id"])
         await _emitir_colaboradores(room)
+
+
+async def _cerrar_documento(room: str, proyecto_id: int, diagrama_id: int) -> None:
+    """Se fue el último: se guarda lo último, por si se fue antes del autoguardado. Si
+    alguien entró mientras tanto, el documento sigue abierto."""
+    contenido = documentos.obtener(proyecto_id)
+    try:
+        if contenido is not None:
+            await asyncio.to_thread(_guardar_documento, diagrama_id, contenido)
+    except Exception:
+        logger.exception("No se pudo guardar el diagrama %s al cerrarlo", diagrama_id)
+    if not salas.get(room):
+        documentos.cerrar(proyecto_id)
 
 
 @sio.event
@@ -136,8 +201,12 @@ async def cambio_diagrama(sid, data):
     # Sin sala (socket conectado sin diagramaId) no se reenvía: room=None
     # difundiría el cambio a todos los clientes conectados.
     if sesion and sesion["room"]:
+        # Sin `await` antes de esto: ningún cambio del agente puede intercalarse.
+        contenido = documentos.aplicar_mensaje(sesion["proyecto_id"], data)
         await sio.emit("cambio_diagrama", data, room=sesion["room"], skip_sid=sid)
-        revisor.registrar_cambio(sesion["proyecto_id"], sesion["usuario_id"], data)
+        revisor.registrar_cambio(
+            sesion["proyecto_id"], sesion["usuario_id"], contenido if contenido is not None else data
+        )
         # Confirma el envío: lo que el cliente no vea confirmado lo reenvía al reconectar.
         return True
 
@@ -154,6 +223,15 @@ async def seleccion(sid, data):
         salas[room][sid]["claseId"] = clase_id
         revisor.registrar_seleccion(sesion["proyecto_id"], sesion["usuario_id"], clase_id)
         await _emitir_colaboradores(room)
+
+
+@sio.event
+async def actividad(sid):
+    """CU17: tocar teclado o mouse con una clase seleccionada, aunque todavía no haya
+    un cambio que enviar (por ejemplo, escribiendo un nombre largo)."""
+    sesion = await sio.get_session(sid)
+    if sesion and sesion["room"]:
+        revisor.registrar_actividad(sesion["proyecto_id"], sesion["usuario_id"])
 
 
 @sio.event

@@ -131,9 +131,12 @@ class RevisorDiagrama:
         # Un mensaje que toca más clases que esto no es una edición a mano
         # (importación, foto): no se analiza.
         self.max_clases_por_cambio = 3
+        # CU17: una clase seleccionada cuenta como "en uso" solo con actividad reciente.
+        self.segundos_actividad = 30.0
 
         self._fotos: dict[int, _Foto] = {}
         self._seleccion: dict[int, dict[int, str]] = {}  # proyecto -> {usuario: clase}
+        self._actividad: dict[int, dict[int, float]] = {}  # proyecto -> {usuario: instante}
         self._silenciados: set[int] = set()
         self._temporizadores: dict[tuple[int, int, str], asyncio.Task] = {}
         self._ultima_huella: dict[tuple[int, str], str] = {}
@@ -153,9 +156,11 @@ class RevisorDiagrama:
     def cerrar_proyecto(self, proyecto_id: int) -> None:
         self._fotos.pop(proyecto_id, None)
         self._seleccion.pop(proyecto_id, None)
+        self._actividad.pop(proyecto_id, None)
 
     @_sin_propagar
     def registrar_cambio(self, proyecto_id: int, usuario_id: int, contenido) -> None:
+        self.registrar_actividad(proyecto_id, usuario_id)
         anterior = self._fotos.get(proyecto_id)
         if anterior is None:
             return
@@ -173,6 +178,7 @@ class RevisorDiagrama:
 
     @_sin_propagar
     def registrar_seleccion(self, proyecto_id: int, usuario_id: int, clase_id: str | None) -> None:
+        self.registrar_actividad(proyecto_id, usuario_id)
         seleccion = self._seleccion.setdefault(proyecto_id, {})
         if clase_id:
             seleccion[usuario_id] = clase_id
@@ -183,12 +189,36 @@ class RevisorDiagrama:
     @_sin_propagar
     def usuario_desconectado(self, proyecto_id: int, usuario_id: int) -> None:
         self._seleccion.get(proyecto_id, {}).pop(usuario_id, None)
+        self._actividad.get(proyecto_id, {}).pop(usuario_id, None)
         self._soltar(proyecto_id, usuario_id)
 
     @_sin_propagar
     def cancelar_usuario(self, proyecto_id: int, usuario_id: int) -> None:
         self._seleccion.get(proyecto_id, {}).pop(usuario_id, None)
         self._cancelar(lambda clave: clave[0] == proyecto_id and clave[1] == usuario_id)
+
+    @_sin_propagar
+    def registrar_actividad(self, proyecto_id: int, usuario_id: int) -> None:
+        self._actividad.setdefault(proyecto_id, {})[usuario_id] = time.monotonic()
+
+    @_sin_propagar
+    def sincronizar(self, proyecto_id: int, contenido) -> None:
+        """Un cambio del agente (CU17): actualiza la foto para que no se confunda con
+        una edición de nadie, sin programar ningún análisis."""
+        if proyecto_id in self._fotos:
+            self._fotos[proyecto_id] = _Foto(contenido)
+
+    def quien_edita(self, proyecto_id: int, clases: set[str], excepto: int) -> tuple[str, int] | None:
+        """(clase, usuario) de una de `clases` que otra persona tenga seleccionada con
+        actividad reciente. Seleccionada e inactiva no cuenta: se olvidó de soltarla."""
+        ahora = time.monotonic()
+        actividad = self._actividad.get(proyecto_id, {})
+        for usuario_id, clase_id in self._seleccion.get(proyecto_id, {}).items():
+            if usuario_id == excepto or clase_id not in clases:
+                continue
+            if ahora - actividad.get(usuario_id, float("-inf")) <= self.segundos_actividad:
+                return clase_id, usuario_id
+        return None
 
     @_sin_propagar
     def silenciar(self, usuario_id: int, activo: bool) -> None:
@@ -340,6 +370,8 @@ def _cargar_contexto(proyecto_id: int, usuario_id: int, clase_id: str) -> dict |
                 MensajeProyecto.id_proyecto == proyecto_id,
                 MensajeProyecto.tipo == "agente",
                 MensajeProyecto.elemento_referenciado == clase_id,
+                # Los resúmenes de CU17 también referencian una clase, pero no son sugerencias.
+                ~MensajeProyecto.accion.has(),
             )
             .order_by(MensajeProyecto.id.desc())
             .limit(SUGERENCIAS_PREVIAS)

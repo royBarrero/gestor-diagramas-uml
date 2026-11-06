@@ -32,3 +32,6 @@ class Proyecto(Base):
     mensajes = relationship(
         "MensajeProyecto", back_populates="proyecto", cascade="all, delete-orphan"
     )
+    acciones_agente = relationship(
+        "AccionAgente", back_populates="proyecto", cascade="all, delete-orphan"
+    )

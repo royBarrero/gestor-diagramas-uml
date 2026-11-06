@@ -59,6 +59,7 @@ _TIPO_JAVA_A_DART = {
     "Long": "int",
     "double": "double",
     "float": "double",
+    "BigDecimal": "double",
     "boolean": "bool",
     "char": "String",
     "LocalDate": "DateTime",

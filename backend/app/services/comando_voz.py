@@ -347,7 +347,7 @@ def _generar_id(prefijo: str) -> str:
     return f"{prefijo}-{uuid.uuid4().hex[:10]}"
 
 
-def _buscar_clase(nodes: list[dict], nombre: str | None) -> dict | None:
+def buscar_clase(nodes: list[dict], nombre: str | None) -> dict | None:
     nombre_normalizado = normalizar(nombre)
     if not nombre_normalizado:
         return None
@@ -402,6 +402,56 @@ def _posicion_nueva_clase(nodes: list[dict]) -> dict:
         celda += 1
 
 
+_ANCHO_CLASE = 280
+_ALTO_CLASE = 260
+_SEPARACION = 60
+
+
+def _caja(nodo: dict) -> tuple[float, float, float, float]:
+    posicion = nodo.get("position") or {}
+    medidas = nodo.get("measured") or {}
+    return (
+        posicion.get("x", 0),
+        posicion.get("y", 0),
+        medidas.get("width") or _ANCHO_CLASE,
+        medidas.get("height") or _ALTO_CLASE,
+    )
+
+
+def _posicion_cerca_de(nodes: list[dict], referencia: dict) -> dict:
+    """La posición libre más cercana a `referencia`, probando a su alrededor en
+    anillos cada vez más lejanos: primero a los costados, después arriba y abajo."""
+    x, y, ancho, alto = _caja(referencia)
+    paso_x = max(ancho, _ANCHO_CLASE) + _SEPARACION
+    paso_y = max(alto, _ALTO_CLASE) + _SEPARACION
+    cajas = [_caja(n) for n in nodes]
+
+    def libre(cx: float, cy: float) -> bool:
+        return all(
+            cx + _ANCHO_CLASE + _SEPARACION / 2 <= ox
+            or ox + oancho + _SEPARACION / 2 <= cx
+            or cy + _ALTO_CLASE + _SEPARACION / 2 <= oy
+            or oy + oalto + _SEPARACION / 2 <= cy
+            for ox, oy, oancho, oalto in cajas
+        )
+
+    anillo = 1
+    while True:
+        candidatos = [
+            (columna, fila)
+            for columna in range(-anillo, anillo + 1)
+            for fila in range(-anillo, anillo + 1)
+            if max(abs(columna), abs(fila)) == anillo
+        ]
+        # A igual anillo, antes lo que queda a la misma altura y a la derecha.
+        candidatos.sort(key=lambda c: (abs(c[1]), -c[0], c[1]))
+        for columna, fila in candidatos:
+            cx, cy = x + columna * paso_x, y + fila * paso_y
+            if libre(cx, cy):
+                return {"x": cx, "y": cy}
+        anillo += 1
+
+
 def _clase_de_asociacion_valida(edges: list[dict], edge: dict, nodo: dict | None, nombre: str | None) -> str:
     """Mismas reglas que el editor (EditarRelacionModal.jsx) y validar_contenido:
     solo en asociaciones, no uno de los extremos, y no usada en otra relación.
@@ -432,8 +482,8 @@ def _indice_relacion(nodes: list[dict], edges: list[dict], rel: dict, tipo: str 
     (en cualquier dirección), filtrando por `tipo` si se indica. Lanza
     ComandoNoInterpretadoError si no hay ninguna, o si hay varias y no se
     dijo el tipo para desambiguar."""
-    a = _buscar_clase(nodes, rel.get("claseOrigen"))
-    b = _buscar_clase(nodes, rel.get("claseDestino"))
+    a = buscar_clase(nodes, rel.get("claseOrigen"))
+    b = buscar_clase(nodes, rel.get("claseDestino"))
     if a is None or b is None:
         faltante = rel.get("claseOrigen") if a is None else rel.get("claseDestino")
         raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{faltante}".')
@@ -466,12 +516,16 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
 
     if tipo_accion == "crear_clase":
         nombre = accion.get("clase") or "NuevaClase"
-        if _buscar_clase(nodes, nombre) is not None:
+        if buscar_clase(nodes, nombre) is not None:
             raise ComandoNoInterpretadoError(f'Ya existe una clase llamada "{nombre}".')
         nuevo_nodo = {
             "id": _generar_id("clase"),
             "type": "clase",
-            "position": _posicion_nueva_clase(nodes),
+            "position": (
+                _posicion_cerca_de(nodes, cercana)
+                if (cercana := buscar_clase(nodes, accion.get("cerca_de")))
+                else _posicion_nueva_clase(nodes)
+            ),
             "data": {
                 "nombre": nombre,
                 "atributos": _items(accion.get("atributos"), "atributos"),
@@ -481,7 +535,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
         nodes.append(nuevo_nodo)
 
     elif tipo_accion in ("agregar_atributo", "agregar_metodo"):
-        nodo = _buscar_clase(nodes, accion.get("clase"))
+        nodo = buscar_clase(nodes, accion.get("clase"))
         if nodo is None:
             raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{accion.get("clase")}".')
         campo = "atributos" if tipo_accion == "agregar_atributo" else "metodos"
@@ -491,7 +545,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
         nodo["data"] = {**nodo["data"], campo: [*nodo["data"][campo], *_items(items, campo)]}
 
     elif tipo_accion in ("eliminar_atributo", "eliminar_metodo"):
-        nodo = _buscar_clase(nodes, accion.get("clase"))
+        nodo = buscar_clase(nodes, accion.get("clase"))
         if nodo is None:
             raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{accion.get("clase")}".')
         campo = "atributos" if tipo_accion == "eliminar_atributo" else "metodos"
@@ -508,7 +562,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
         }
 
     elif tipo_accion in ("editar_atributo", "editar_metodo"):
-        nodo = _buscar_clase(nodes, accion.get("clase"))
+        nodo = buscar_clase(nodes, accion.get("clase"))
         if nodo is None:
             raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{accion.get("clase")}".')
         campo = "atributos" if tipo_accion == "editar_atributo" else "metodos"
@@ -522,7 +576,11 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
         nueva_definicion = (accion.get(campo) or [None])[0]
         if not nueva_definicion:
             raise ComandoNoInterpretadoError("No entendí cuál es el nuevo nombre o visibilidad.")
-        cambios = {"texto": nueva_definicion["nombre"], "visibilidad": nueva_definicion["visibilidad"]}
+        # Lo que no se indica se conserva: CU08 manda siempre todo; CU17, solo lo que cambia.
+        cambios = {
+            "texto": nueva_definicion.get("nombre") or objetivo.get("texto"),
+            "visibilidad": nueva_definicion.get("visibilidad") or objetivo.get("visibilidad"),
+        }
         if campo == "atributos":
             nuevo_tipo = nueva_definicion.get("tipo")
             cambios["tipo"] = nuevo_tipo if nuevo_tipo is not None else objetivo.get("tipo", "")
@@ -536,8 +594,8 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
 
     elif tipo_accion == "crear_relacion":
         rel = accion.get("relacion") or {}
-        origen = _buscar_clase(nodes, rel.get("claseOrigen"))
-        destino = _buscar_clase(nodes, rel.get("claseDestino"))
+        origen = buscar_clase(nodes, rel.get("claseOrigen"))
+        destino = buscar_clase(nodes, rel.get("claseDestino"))
         if origen is None or destino is None:
             faltante = rel.get("claseOrigen") if origen is None else rel.get("claseDestino")
             raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{faltante}".')
@@ -555,7 +613,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
             },
         }
         if rel.get("claseAsociacion"):
-            nodo_asociacion = _buscar_clase(nodes, rel["claseAsociacion"])
+            nodo_asociacion = buscar_clase(nodes, rel["claseAsociacion"])
             nuevo_edge["data"]["claseAsociacion"] = _clase_de_asociacion_valida(
                 edges, nuevo_edge, nodo_asociacion, rel["claseAsociacion"]
             )
@@ -563,8 +621,8 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
 
     elif tipo_accion == "asignar_clase_asociacion":
         rel = accion.get("relacion") or {}
-        a = _buscar_clase(nodes, rel.get("claseOrigen"))
-        b = _buscar_clase(nodes, rel.get("claseDestino"))
+        a = buscar_clase(nodes, rel.get("claseOrigen"))
+        b = buscar_clase(nodes, rel.get("claseDestino"))
         sin_asociacion = (
             a is not None
             and b is not None
@@ -588,7 +646,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
             )
         indice = _indice_relacion(nodes, edges, rel, "asociacion")
         edge = edges[indice]
-        nodo_asociacion = _buscar_clase(nodes, rel.get("claseAsociacion"))
+        nodo_asociacion = buscar_clase(nodes, rel.get("claseAsociacion"))
         clase_id = _clase_de_asociacion_valida(edges, edge, nodo_asociacion, rel.get("claseAsociacion"))
         edges[indice] = {**edge, "data": {**edge["data"], "claseAsociacion": clase_id}}
 
@@ -600,7 +658,7 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
         edges[indice] = {**edge, "data": {**edge["data"], "claseAsociacion": None}}
 
     elif tipo_accion == "eliminar_clase":
-        nodo = _buscar_clase(nodes, accion.get("clase"))
+        nodo = buscar_clase(nodes, accion.get("clase"))
         if nodo is None:
             raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{accion.get("clase")}".')
         # Igual que eliminarClase + quitarClasesAsociacion en PizarraContext.jsx:
@@ -614,6 +672,25 @@ def aplicar_accion(contenido: dict, accion: dict) -> dict:
             for e in edges
             if nodo["id"] not in (e["source"], e["target"])
         ]
+
+    elif tipo_accion == "renombrar_clase":
+        nodo = buscar_clase(nodes, accion.get("clase"))
+        if nodo is None:
+            raise ComandoNoInterpretadoError(f'No encontré ninguna clase llamada "{accion.get("clase")}".')
+        existente = buscar_clase(nodes, accion.get("nombre_nuevo"))
+        if existente is not None and existente["id"] != nodo["id"]:
+            raise ComandoNoInterpretadoError(f'Ya existe una clase llamada "{accion.get("nombre_nuevo")}".')
+        nodo["data"] = {**nodo["data"], "nombre": accion["nombre_nuevo"]}
+
+    elif tipo_accion == "editar_relacion":
+        rel = accion.get("relacion") or {}
+        indice = _indice_relacion(nodes, edges, rel, rel.get("tipo"))
+        edge = edges[indice]
+        data = {**edge["data"], **{k: v for k, v in (accion.get("cambios_relacion") or {}).items() if v is not None}}
+        # Mismo criterio que el editor: solo una asociación tiene clase intermedia.
+        if data.get("tipo") != "asociacion" and data.get("claseAsociacion"):
+            data["claseAsociacion"] = None
+        edges[indice] = {**edge, "data": data}
 
     elif tipo_accion == "eliminar_relacion":
         rel = accion.get("relacion") or {}

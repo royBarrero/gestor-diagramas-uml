@@ -15,7 +15,7 @@ from app.core.deps import get_current_user
 from app.core.permisos import exigir_miembro, obtener_proyecto_o_404
 from app.models.diagrama import Diagrama
 from app.models.usuario import Usuario
-from app.realtime import revisor, sio
+from app.realtime import documentos, publicar_contenido
 from app.schemas.comando_voz import ComandoVozOut
 from app.schemas.diagrama import DiagramaActualizar, DiagramaOut
 from app.schemas.digitalizacion import DigitalizacionOut
@@ -41,6 +41,21 @@ def _obtener_diagrama_o_404(diagrama_id: int, db: Session) -> Diagrama:
     return diagrama
 
 
+def _contenido_actual(diagrama: Diagrama) -> dict:
+    """La versión viva si hay alguien conectado: la base puede estar atrasada."""
+    return documentos.obtener(diagrama.id_proyecto) or diagrama.contenido
+
+
+def _salida(diagrama: Diagrama) -> DiagramaOut:
+    return DiagramaOut(
+        id=diagrama.id,
+        id_proyecto=diagrama.id_proyecto,
+        nombre=diagrama.nombre,
+        contenido=_contenido_actual(diagrama),
+        updated_at=diagrama.updated_at,
+    )
+
+
 @router.get("/proyecto/{proyecto_id}", response_model=DiagramaOut)
 def obtener_diagrama_de_proyecto(
     proyecto_id: int,
@@ -61,7 +76,7 @@ def obtener_diagrama_de_proyecto(
         db.commit()
         db.refresh(diagrama)
 
-    return diagrama
+    return _salida(diagrama)
 
 
 @router.get("/{diagrama_id}", response_model=DiagramaOut)
@@ -74,7 +89,7 @@ def obtener_diagrama(
     proyecto = obtener_proyecto_o_404(diagrama.id_proyecto, db)
     exigir_miembro(proyecto, usuario_actual, db)
 
-    return diagrama
+    return _salida(diagrama)
 
 
 @router.put("/{diagrama_id}", response_model=DiagramaOut)
@@ -88,7 +103,11 @@ def actualizar_diagrama(
     proyecto = obtener_proyecto_o_404(diagrama.id_proyecto, db)
     exigir_miembro(proyecto, usuario_actual, db)
 
-    diagrama.contenido = datos.contenido
+    # Con gente conectada se guarda la versión viva, no lo recibido: este cliente puede
+    # estar atrasado, y su diagrama completo pisaría cambios ajenos o del agente. Sus
+    # propias ediciones llegan por el socket; si no llegaron, siguen pendientes y las
+    # reenvía al reconectar.
+    diagrama.contenido = documentos.obtener(diagrama.id_proyecto) or datos.contenido
     db.commit()
     db.refresh(diagrama)
 
@@ -112,12 +131,12 @@ async def procesar_comando_voz(
     audio_bytes = await audio.read()
 
     try:
-        texto = servicio_voz.transcribir_audio(audio_bytes, audio.filename or "comando.webm", diagrama.contenido)
-        resultado = servicio_voz.interpretar_comando(texto, diagrama.contenido)
+        texto = servicio_voz.transcribir_audio(audio_bytes, audio.filename or "comando.webm", _contenido_actual(diagrama))
+        resultado = servicio_voz.interpretar_comando(texto, _contenido_actual(diagrama))
     except servicio_voz.ServicioIANoDisponibleError as exc:
         return ComandoVozOut(estado="error_ia", mensaje=str(exc))
 
-    nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(diagrama.contenido, resultado)
+    nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(_contenido_actual(diagrama), resultado)
     if aplicadas == 0:
         return ComandoVozOut(estado="no_entendido", mensaje=" ".join(errores), transcripcion=texto)
 
@@ -131,8 +150,7 @@ async def procesar_comando_voz(
     db.commit()
     db.refresh(diagrama)
 
-    await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
-    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
 
     return ComandoVozOut(estado="aplicado", mensaje=mensaje, contenido=nuevo_contenido, transcripcion=texto)
 
@@ -165,14 +183,13 @@ async def digitalizar_imagen(
         mensaje = resultado.get("advertencia") or "No se pudo reconocer ningún elemento en la imagen."
         return DigitalizacionOut(estado="fallido", mensaje=mensaje)
 
-    nuevo_contenido, relaciones_omitidas = servicio_imagen.construir_contenido(diagrama.contenido, resultado)
+    nuevo_contenido, relaciones_omitidas = servicio_imagen.construir_contenido(_contenido_actual(diagrama), resultado)
 
     diagrama.contenido = nuevo_contenido
     db.commit()
     db.refresh(diagrama)
 
-    await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
-    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
 
     advertencia = resultado.get("advertencia")
     if relaciones_omitidas:
@@ -254,7 +271,6 @@ async def importar_diagrama(
     db.commit()
     db.refresh(diagrama)
 
-    await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
-    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
 
     return ImportacionOut(estado="aplicado", mensaje="Diagrama importado correctamente.", contenido=nuevo_contenido)
