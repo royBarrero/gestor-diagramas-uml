@@ -184,6 +184,7 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
     cerrarAviso,
     ignorar,
     pausarAviso,
+    pedirCorreccion,
     silenciado,
     alternarSilencio,
   } = useSugerenciasIA({ socket, proyectoId, usuarioId: usuario?.id, nodes, edges, seleccionId })
@@ -191,6 +192,17 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
   function verSugerenciaEnChat(mensajeId) {
     setChatAbierto(true)
     setMensajeAResaltar({ id: mensajeId })
+  }
+
+  // El chat muestra cómo sigue: el agente responde ahí. Devuelve el motivo si no se pudo.
+  async function handlePedirCorreccion() {
+    const { mensajeId } = aviso
+    const error = await pedirCorreccion(mensajeId)
+    if (!error) {
+      cerrarAviso()
+      setChatAbierto(true)
+    }
+    return error
   }
 
   const presenciasPorClase = {}
@@ -429,6 +441,7 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
                 }}
                 onIgnorar={() => ignorar(aviso.claseId)}
                 onPausar={pausarAviso}
+                onPedirCorreccion={handlePedirCorreccion}
               />
             )}
           </div>

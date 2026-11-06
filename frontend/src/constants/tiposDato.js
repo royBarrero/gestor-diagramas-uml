@@ -1,1 +1,1 @@
-export const TIPOS_DATO = ['String', 'int', 'long', 'double', 'float', 'boolean', 'char', 'Date', 'List']
+export const TIPOS_DATO = ['String', 'int', 'long', 'double', 'float', 'boolean', 'char', 'Date', 'Decimal', 'List']

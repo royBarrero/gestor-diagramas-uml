@@ -12,6 +12,8 @@ import { useDebouncedEffect } from './useDebouncedEffect'
 
 export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+const MS_ENTRE_AVISOS_ACTIVIDAD = 10000
+
 export function useColaboracion(diagramaId, { nodes, edges, reemplazarDiagrama, seleccionId }) {
   const [colaboradores, setColaboradores] = useState([])
   const [estadoConexion, setEstadoConexion] = useState('conectando')
@@ -89,6 +91,24 @@ export function useColaboracion(diagramaId, { nodes, edges, reemplazarDiagrama, 
     seleccionRef.current = seleccionId
     socketRef.current?.emit('seleccion', { claseId: seleccionId })
   }, [seleccionId])
+
+  // CU17: el agente no toca una clase en uso, y escribir en un campo no le llega al
+  // servidor hasta confirmarlo: sin esto, alguien tipeando figuraría inactivo.
+  useEffect(() => {
+    let ultimoAviso = 0
+    function avisarActividad() {
+      const ahora = Date.now()
+      if (!seleccionRef.current || ahora - ultimoAviso < MS_ENTRE_AVISOS_ACTIVIDAD) return
+      ultimoAviso = ahora
+      socketRef.current?.emit('actividad')
+    }
+    window.addEventListener('keydown', avisarActividad, true)
+    window.addEventListener('pointerdown', avisarActividad, true)
+    return () => {
+      window.removeEventListener('keydown', avisarActividad, true)
+      window.removeEventListener('pointerdown', avisarActividad, true)
+    }
+  }, [])
 
   useDebouncedEffect(
     () => {

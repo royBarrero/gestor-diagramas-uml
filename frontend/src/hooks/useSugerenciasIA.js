@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { api } from '../services/api'
 import { huellaClase } from '../utils/huellaClase'
 
 const MS_AVISO_ABIERTO = 12000
@@ -64,7 +65,8 @@ export function useSugerenciasIA({ socket, proyectoId, usuarioId, nodes, edges, 
     if (!socket) return undefined
 
     function alRecibirMensaje(mensaje) {
-      if (mensaje.tipo !== 'agente' || !mensaje.elemento_referenciado) return
+      // Los mensajes con `accion` son resúmenes de cambios (CU17), no sugerencias.
+      if (mensaje.tipo !== 'agente' || !mensaje.elemento_referenciado || mensaje.accion) return
       if (mensaje.id_proyecto !== Number(proyectoId)) return
 
       const claseId = mensaje.elemento_referenciado
@@ -89,8 +91,21 @@ export function useSugerenciasIA({ socket, proyectoId, usuarioId, nodes, edges, 
       }
     }
 
+    // Una sugerencia corregida (CU17) deja de marcarse.
+    function alActualizarMensaje(mensaje) {
+      if (!mensaje.sugerencia_resuelta) return
+      setMarcas((actuales) => {
+        const quedan = Object.entries(actuales).filter(([, marca]) => marca.mensajeId !== mensaje.id)
+        return quedan.length === Object.keys(actuales).length ? actuales : Object.fromEntries(quedan)
+      })
+    }
+
     socket.on('chat_mensaje', alRecibirMensaje)
-    return () => socket.off('chat_mensaje', alRecibirMensaje)
+    socket.on('chat_mensaje_actualizado', alActualizarMensaje)
+    return () => {
+      socket.off('chat_mensaje', alRecibirMensaje)
+      socket.off('chat_mensaje_actualizado', alActualizarMensaje)
+    }
   }, [socket, proyectoId, usuarioId])
 
   // El servidor guarda el silencio en memoria: se le repite en cada conexión.
@@ -138,6 +153,17 @@ export function useSugerenciasIA({ socket, proyectoId, usuarioId, nodes, edges, 
     })
   }, [])
 
+  // CU17: le pide al agente que aplique la sugerencia. Devuelve el motivo si no se pudo.
+  async function pedirCorreccion(mensajeId) {
+    try {
+      await api.post(`/proyectos/${proyectoId}/mensajes/${mensajeId}/pedir-correccion`)
+      return null
+    } catch (error) {
+      const detalle = error.response?.data?.detail
+      return typeof detalle === 'string' ? detalle : 'No se pudo pedir la corrección.'
+    }
+  }
+
   function alternarSilencio() {
     setSilencioElegido(!silenciado)
     guardarSilencio(usuarioId, !silenciado)
@@ -150,6 +176,7 @@ export function useSugerenciasIA({ socket, proyectoId, usuarioId, nodes, edges, 
     cerrarAviso,
     ignorar,
     pausarAviso: setAvisoEnPausa,
+    pedirCorreccion,
     silenciado,
     alternarSilencio,
   }

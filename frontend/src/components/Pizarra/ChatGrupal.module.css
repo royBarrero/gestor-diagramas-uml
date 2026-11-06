@@ -394,3 +394,70 @@
     box-shadow: 0 0 0 2px transparent;
   }
 }
+
+/* CU17: botones de los cambios del agente */
+.accionMensaje {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.botonesAccion {
+  display: flex;
+  gap: 8px;
+}
+
+.botonAccion,
+.botonAccionPrincipal {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonAccion {
+  border: 1px solid var(--ui-borde);
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+}
+
+.botonAccion:hover:not(:disabled) {
+  background: #1e2230;
+  color: var(--ui-texto);
+}
+
+.botonAccionPrincipal {
+  border: 1px solid var(--ia);
+  background: var(--ia-bg);
+  color: var(--ia-claro);
+}
+
+.botonAccion:disabled,
+.botonAccionPrincipal:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.errorAccion {
+  margin: 0;
+  color: var(--ui-error);
+  font-size: 13px;
+}
+
+.estadoAccion {
+  margin-top: 8px;
+  color: var(--ui-texto-3);
+  font-size: 13px;
+}
+
+.resuelta {
+  padding: 1px 8px;
+  border: 1px solid var(--ui-primario);
+  border-radius: 999px;
+  color: var(--ui-primario);
+  font-size: 11px;
+  font-weight: 600;
+}

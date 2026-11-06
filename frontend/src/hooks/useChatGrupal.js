@@ -93,12 +93,19 @@ export function useChatGrupal(proyectoId, socket, abierto) {
       setAgenteEscribiendo(activo)
     }
 
+    // CU17: cambió un mensaje ya publicado (sus botones, o se resolvió la sugerencia).
+    function alActualizarMensaje(mensaje) {
+      setMensajes((actuales) => actuales.map((m) => (m.id === mensaje.id ? mensaje : m)))
+    }
+
     socket.on('connect', alConectar)
     socket.on('chat_mensaje', alRecibirMensaje)
+    socket.on('chat_mensaje_actualizado', alActualizarMensaje)
     socket.on('chat_agente_escribiendo', alCambiarEscritura)
     return () => {
       socket.off('connect', alConectar)
       socket.off('chat_mensaje', alRecibirMensaje)
+      socket.off('chat_mensaje_actualizado', alActualizarMensaje)
       socket.off('chat_agente_escribiendo', alCambiarEscritura)
     }
   }, [socket, proyectoId, incorporar, ponerseAlDia])
@@ -135,7 +142,20 @@ export function useChatGrupal(proyectoId, socket, abierto) {
     }
   }
 
+  // CU17: `tipo` es confirmar, cancelar o deshacer. Devuelve el motivo si no se pudo;
+  // el resultado llega por el socket a todo el equipo.
+  async function resolverAccion(accionId, tipo) {
+    try {
+      await api.post(`/proyectos/${proyectoId}/mensajes/acciones/${accionId}/${tipo}`)
+      return null
+    } catch (error) {
+      const detalle = error.response?.data?.detail
+      return typeof detalle === 'string' ? detalle : 'No se pudo completar la acción.'
+    }
+  }
+
   return {
+    resolverAccion,
     mensajes,
     noLeidos,
     agenteEscribiendo,

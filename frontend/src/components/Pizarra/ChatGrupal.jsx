@@ -31,7 +31,66 @@ function TextoConMenciones({ texto }) {
   )
 }
 
-function Mensaje({ mensaje, usuarioId }) {
+const ETIQUETA_ESTADO = { confirmada: 'Confirmado', cancelada: 'Cancelado', deshecha: 'Deshecho' }
+
+// CU17: los botones de un cambio del agente. Solo los ve quien lo pidió, y el servidor
+// lo vuelve a comprobar.
+function AccionMensaje({ mensaje, usuarioId, onResolver }) {
+  const { accion } = mensaje
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function resolver(tipo) {
+    setEnviando(true)
+    setError(null)
+    setError(await onResolver(accion.id, tipo))
+    setEnviando(false)
+  }
+
+  if (ETIQUETA_ESTADO[accion.estado]) {
+    return <div className={styles.estadoAccion}>{ETIQUETA_ESTADO[accion.estado]}</div>
+  }
+
+  const esMia = accion.id_solicitante === usuarioId
+  if (!esMia) {
+    return accion.estado === 'pendiente' ? (
+      <div className={styles.estadoAccion}>Esperando la confirmación de {mensaje.destino_nombre}</div>
+    ) : null
+  }
+
+  return (
+    <div className={styles.accionMensaje}>
+      <div className={styles.botonesAccion}>
+        {accion.estado === 'pendiente' ? (
+          <>
+            <button
+              type="button"
+              className={styles.botonAccionPrincipal}
+              disabled={enviando}
+              onClick={() => resolver('confirmar')}
+            >
+              Confirmar
+            </button>
+            <button type="button" className={styles.botonAccion} disabled={enviando} onClick={() => resolver('cancelar')}>
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <button type="button" className={styles.botonAccion} disabled={enviando} onClick={() => resolver('deshacer')}>
+            Deshacer
+          </button>
+        )}
+      </div>
+      {error && (
+        <p className={styles.errorAccion} role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function Mensaje({ mensaje, usuarioId, onResolverAccion }) {
   if (mensaje.tipo === 'sistema') {
     return <div className={styles.mensajeSistema}>{mensaje.texto}</div>
   }
@@ -46,6 +105,7 @@ function Mensaje({ mensaje, usuarioId }) {
           <div className={styles.encabezado}>
             <b className={styles.nombreAgente}>Agente IA</b>
             <span className={styles.hora}>{formatearHora(mensaje.created_at)}</span>
+            {mensaje.sugerencia_resuelta && <span className={styles.resuelta}>Resuelta</span>}
           </div>
           {mensaje.destino_id && (
             <div className={styles.destino}>
@@ -56,6 +116,7 @@ function Mensaje({ mensaje, usuarioId }) {
             </div>
           )}
           <MensajeFormateado texto={mensaje.texto} />
+          {mensaje.accion && <AccionMensaje mensaje={mensaje} usuarioId={usuarioId} onResolver={onResolverAccion} />}
         </div>
       </div>
     )
@@ -97,6 +158,7 @@ function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbie
     cargarAnteriores,
     reintentarCarga,
     marcarLeidos,
+    resolverAccion,
   } = useChatGrupal(proyectoId, socket, abierto)
 
   const listaRef = useRef(null)
@@ -263,7 +325,7 @@ function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbie
 
         {mensajes.map((mensaje) => (
           <div key={mensaje.id} data-mensaje-id={mensaje.id} className={styles.contenedorMensaje}>
-            <Mensaje mensaje={mensaje} usuarioId={usuario?.id} />
+            <Mensaje mensaje={mensaje} usuarioId={usuario?.id} onResolverAccion={resolverAccion} />
           </div>
         ))}
 
