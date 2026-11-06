@@ -13,6 +13,8 @@ from app.core.database import SessionLocal
 from app.core.deps import obtener_usuario_desde_token
 from app.core.permisos import obtener_proyecto_o_404, rol_de_usuario_en_proyecto
 from app.models.diagrama import Diagrama
+from app.schemas.mensaje_proyecto import MensajeOut
+from app.services.revisor_diagrama import RevisorDiagrama
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=get_cors_origins())
 
@@ -26,6 +28,30 @@ def _room(diagrama_id: str) -> str:
 
 def room_usuario(usuario_id: int) -> str:
     return f"usuario_{usuario_id}"
+
+
+def room_proyecto(proyecto_id: int) -> str:
+    return f"proyecto_{proyecto_id}"
+
+
+async def emitir_mensaje(mensaje: MensajeOut) -> None:
+    """Difunde un mensaje del chat grupal a la sala de su proyecto."""
+    await sio.emit("chat_mensaje", mensaje.model_dump(mode="json"), room=room_proyecto(mensaje.id_proyecto))
+
+
+# CU16: sugerencias automáticas del agente sobre las clases que se editan.
+revisor = RevisorDiagrama(publicar=emitir_mensaje)
+
+
+async def sacar_de_proyecto(usuario_id: int, proyecto_id: int) -> None:
+    """Al quitar un miembro, cierra sus sockets abiertos en ese proyecto: deja de
+    recibir el chat y de recibir o enviar cambios del diagrama. Su socket de
+    notificaciones y los de otros proyectos siguen conectados."""
+    revisor.cancelar_usuario(proyecto_id, usuario_id)
+    for sid, _ in list(sio.manager.get_participants("/", room_usuario(usuario_id))):
+        sesion = await sio.get_session(sid)
+        if sesion and sesion.get("proyecto_id") == proyecto_id:
+            await sio.disconnect(sid)
 
 
 async def _emitir_colaboradores(room: str) -> None:
@@ -59,6 +85,7 @@ async def connect(sid, environ, auth):
             raise ConnectionRefusedError("Token inválido.")
 
         room = None
+        proyecto_id = None
         if diagrama_id is not None:
             diagrama = db.query(Diagrama).filter(Diagrama.id == diagrama_id).first()
             if diagrama is None:
@@ -68,15 +95,22 @@ async def connect(sid, environ, auth):
             if rol_de_usuario_en_proyecto(proyecto, usuario, db) is None:
                 raise ConnectionRefusedError("No tenés acceso a este proyecto.")
             room = _room(diagrama_id)
+            proyecto_id = proyecto.id
+            contenido = diagrama.contenido
     finally:
         db.close()
 
-    await sio.save_session(sid, {"room": room, "usuario_id": usuario.id, "nombre": usuario.nombre})
+    await sio.save_session(
+        sid,
+        {"room": room, "proyecto_id": proyecto_id, "usuario_id": usuario.id, "nombre": usuario.nombre},
+    )
     await sio.enter_room(sid, room_usuario(usuario.id))
 
     if room:
         await sio.enter_room(sid, room)
+        await sio.enter_room(sid, room_proyecto(proyecto_id))
         salas.setdefault(room, {})[sid] = {"id": usuario.id, "nombre": usuario.nombre, "claseId": None}
+        revisor.abrir_proyecto(proyecto_id, contenido)
         await _emitir_colaboradores(room)
 
 
@@ -85,15 +119,27 @@ async def disconnect(sid):
     sesion = await sio.get_session(sid)
     room = sesion.get("room") if sesion else None
     if room:
-        salas.get(room, {}).pop(sid, None)
+        sala = salas.get(room, {})
+        sala.pop(sid, None)
+        # Con otra pestaña abierta el usuario sigue en la pizarra.
+        if not any(info["id"] == sesion["usuario_id"] for info in sala.values()):
+            revisor.usuario_desconectado(sesion["proyecto_id"], sesion["usuario_id"])
+        if not sala:
+            salas.pop(room, None)
+            revisor.cerrar_proyecto(sesion["proyecto_id"])
         await _emitir_colaboradores(room)
 
 
 @sio.event
 async def cambio_diagrama(sid, data):
     sesion = await sio.get_session(sid)
-    if sesion:
+    # Sin sala (socket conectado sin diagramaId) no se reenvía: room=None
+    # difundiría el cambio a todos los clientes conectados.
+    if sesion and sesion["room"]:
         await sio.emit("cambio_diagrama", data, room=sesion["room"], skip_sid=sid)
+        revisor.registrar_cambio(sesion["proyecto_id"], sesion["usuario_id"], data)
+        # Confirma el envío: lo que el cliente no vea confirmado lo reenvía al reconectar.
+        return True
 
 
 @sio.event
@@ -103,5 +149,15 @@ async def seleccion(sid, data):
         return
     room = sesion["room"]
     if sid in salas.get(room, {}):
-        salas[room][sid]["claseId"] = (data or {}).get("claseId")
+        clase_id = data.get("claseId") if isinstance(data, dict) else None
+        clase_id = clase_id if isinstance(clase_id, str) else None
+        salas[room][sid]["claseId"] = clase_id
+        revisor.registrar_seleccion(sesion["proyecto_id"], sesion["usuario_id"], clase_id)
         await _emitir_colaboradores(room)
+
+
+@sio.event
+async def silenciar_ia(sid, data):
+    sesion = await sio.get_session(sid)
+    if sesion and isinstance(data, dict):
+        revisor.silenciar(sesion["usuario_id"], bool(data.get("activo")))

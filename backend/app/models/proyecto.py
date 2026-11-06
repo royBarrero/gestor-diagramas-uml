@@ -29,3 +29,6 @@ class Proyecto(Base):
     diagramas = relationship(
         "Diagrama", back_populates="proyecto", cascade="all, delete-orphan"
     )
+    mensajes = relationship(
+        "MensajeProyecto", back_populates="proyecto", cascade="all, delete-orphan"
+    )

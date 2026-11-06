@@ -15,7 +15,7 @@ from app.core.deps import get_current_user
 from app.core.permisos import exigir_miembro, obtener_proyecto_o_404
 from app.models.diagrama import Diagrama
 from app.models.usuario import Usuario
-from app.realtime import sio
+from app.realtime import revisor, sio
 from app.schemas.comando_voz import ComandoVozOut
 from app.schemas.diagrama import DiagramaActualizar, DiagramaOut
 from app.schemas.digitalizacion import DigitalizacionOut
@@ -132,6 +132,7 @@ async def procesar_comando_voz(
     db.refresh(diagrama)
 
     await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
+    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
 
     return ComandoVozOut(estado="aplicado", mensaje=mensaje, contenido=nuevo_contenido, transcripcion=texto)
 
@@ -171,6 +172,7 @@ async def digitalizar_imagen(
     db.refresh(diagrama)
 
     await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
+    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
 
     advertencia = resultado.get("advertencia")
     if relaciones_omitidas:
@@ -253,5 +255,6 @@ async def importar_diagrama(
     db.refresh(diagrama)
 
     await sio.emit("cambio_diagrama", nuevo_contenido, room=f"diagrama_{diagrama_id}")
+    revisor.registrar_cambio(diagrama.id_proyecto, usuario_actual.id, nuevo_contenido)
 
     return ImportacionOut(estado="aplicado", mensaje="Diagrama importado correctamente.", contenido=nuevo_contenido)

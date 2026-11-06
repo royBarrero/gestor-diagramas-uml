@@ -14,7 +14,7 @@ from app.models.invitacion import Invitacion
 from app.models.miembro_proyecto import MiembroProyecto
 from app.models.proyecto import Proyecto
 from app.models.usuario import Usuario
-from app.realtime import room_usuario, sio
+from app.realtime import room_usuario, sacar_de_proyecto, sio
 from app.schemas.invitacion import InvitacionCrear, MiembroOut
 from app.schemas.proyecto import MiembroResumenOut, ProyectoConRolOut, ProyectoCrear, ProyectoEditar
 
@@ -301,7 +301,7 @@ async def invitar_miembro(
 
 
 @router.delete("/{proyecto_id}/miembros/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
-def quitar_miembro(
+async def quitar_miembro(
     proyecto_id: int,
     usuario_id: int,
     usuario_actual: Usuario = Depends(get_current_user),
@@ -332,3 +332,5 @@ def quitar_miembro(
 
     db.delete(membresia)
     db.commit()
+
+    await sacar_de_proyecto(usuario_id, proyecto_id)

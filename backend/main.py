@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_cors_origins
 from app.realtime import sio
-from app.routers import asistente, auth, diagramas, generacion, invitaciones, proyectos
+from app.routers import asistente, auth, chat, diagramas, generacion, invitaciones, proyectos
 
 api = FastAPI(title="Gestor de Diagramas UML - API")
 
@@ -25,6 +25,7 @@ api.include_router(invitaciones.router)
 api.include_router(diagramas.router)
 api.include_router(generacion.router)
 api.include_router(asistente.router)
+api.include_router(chat.router)
 
 @api.get("/")
 def read_root():

@@ -279,7 +279,7 @@ _PROMPT_SISTEMA = (
 )
 
 
-def _describir_nodes(nodes: list[dict]) -> str:
+def describir_nodes(nodes: list[dict]) -> str:
     def _listar(items: list[dict]) -> str:
         return ", ".join(f'{i.get("texto")} ({i.get("visibilidad")})' for i in items) or "(ninguno)"
 
@@ -292,7 +292,7 @@ def _describir_nodes(nodes: list[dict]) -> str:
     return "\n".join(lineas) or "(ninguna todavía)"
 
 
-def _describir_edges(nodes: list[dict], edges: list[dict]) -> str:
+def describir_edges(nodes: list[dict], edges: list[dict]) -> str:
     nombres = {n.get("id"): n.get("data", {}).get("nombre") for n in nodes}
     lineas = []
     for e in edges:
@@ -320,8 +320,8 @@ def interpretar_comando(texto: str, contenido: dict) -> dict:
     cliente = cliente_openai()
     nodes, edges = contenido.get("nodes", []), contenido.get("edges", [])
     contexto = (
-        f"Estado actual del diagrama.\nClases:\n{_describir_nodes(nodes)}\n\n"
-        f"Relaciones:\n{_describir_edges(nodes, edges)}"
+        f"Estado actual del diagrama.\nClases:\n{describir_nodes(nodes)}\n\n"
+        f"Relaciones:\n{describir_edges(nodes, edges)}"
     )
     try:
         respuesta = cliente.chat.completions.create(
