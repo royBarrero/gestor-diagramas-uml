@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Background, BackgroundVariant, ReactFlow, ReactFlowProvider } from '@xyflow/react'
+import { Background, BackgroundVariant, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { api } from '../../services/api'
 import { PizarraProvider, usePizarra } from '../../contexts/PizarraContext'
@@ -16,7 +16,7 @@ import { useSugerenciasIA } from '../../hooks/useSugerenciasIA'
 import ClaseNode from '../../components/Pizarra/ClaseNode'
 import RelacionEdge from '../../components/Pizarra/RelacionEdge'
 import Toolbar from '../../components/Pizarra/Toolbar'
-import ChatGrupal from '../../components/Pizarra/ChatGrupal'
+import PanelLateral from '../../components/Pizarra/PanelLateral'
 import AvisoSugerencia from '../../components/Pizarra/AvisoSugerencia'
 import RielClases from '../../components/Pizarra/RielClases'
 import ListaClases from '../../components/Pizarra/ListaClases'
@@ -77,6 +77,11 @@ function armarAvisos({
 
   return avisos
 }
+
+const MS_CLASE_RESALTADA = 2000
+// Por si React Flow todavía no la midió.
+const ANCHO_CLASE_ESTIMADO = 240
+const ALTO_CLASE_ESTIMADO = 160
 
 function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre }) {
   const {
@@ -175,8 +180,34 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
 
   const otrosColaboradores = colaboradores.filter((c) => c.id !== usuario?.id)
 
-  const [chatAbierto, setChatAbierto] = useState(false)
+  const [panelAbierto, setPanelAbierto] = useState(false)
+  const [pestanaPanel, setPestanaPanel] = useState('chat') // chat | historial
   const [mensajeAResaltar, setMensajeAResaltar] = useState(null)
+  // CU18: la clase que se tocó en el historial. `marca` cambia en cada toque, para que
+  // volver a tocar la misma reinicie la animación.
+  const [claseResaltada, setClaseResaltada] = useState(null)
+  const { setCenter } = useReactFlow()
+
+  useEffect(() => {
+    if (!claseResaltada) return undefined
+    const temporizador = setTimeout(() => setClaseResaltada(null), MS_CLASE_RESALTADA)
+    return () => clearTimeout(temporizador)
+  }, [claseResaltada])
+
+  function irAClase(claseId) {
+    const nodo = nodes.find((n) => n.id === claseId)
+    if (!nodo) return
+    const ancho = nodo.measured?.width ?? ANCHO_CLASE_ESTIMADO
+    const alto = nodo.measured?.height ?? ALTO_CLASE_ESTIMADO
+    setCenter(nodo.position.x + ancho / 2, nodo.position.y + alto / 2, { zoom: 1, duration: 400 })
+    setClaseResaltada({ id: claseId, marca: Date.now() })
+  }
+
+  function abrirChat() {
+    setPestanaPanel('chat')
+    setPanelAbierto(true)
+  }
+
   const {
     marcas: marcasSugerencia,
     aviso,
@@ -190,7 +221,7 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
   } = useSugerenciasIA({ socket, proyectoId, usuarioId: usuario?.id, nodes, edges, seleccionId })
 
   function verSugerenciaEnChat(mensajeId) {
-    setChatAbierto(true)
+    abrirChat()
     setMensajeAResaltar({ id: mensajeId })
   }
 
@@ -200,7 +231,7 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
     const error = await pedirCorreccion(mensajeId)
     if (!error) {
       cerrarAviso()
-      setChatAbierto(true)
+      abrirChat()
     }
     return error
   }
@@ -231,7 +262,10 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
   const nodesConPresencia = nodes.map((n) => {
     const presencias = presenciasPorClase[n.id]
     const sugerencia = datosSugerencia(n.id)
-    return presencias || sugerencia ? { ...n, data: { ...n.data, presencias, sugerencia } } : n
+    const resaltada = claseResaltada?.id === n.id ? claseResaltada.marca : undefined
+    return presencias || sugerencia || resaltada
+      ? { ...n, data: { ...n.data, presencias, sugerencia, resaltada } }
+      : n
   })
   const nodoAviso = aviso ? nodes.find((n) => n.id === aviso.claseId) : null
 
@@ -447,13 +481,17 @@ function LienzoPizarra({ proyectoId, diagramaId, diagramaNombre, proyectoNombre 
           </div>
         </div>
 
-        <ChatGrupal
+        <PanelLateral
           proyectoId={proyectoId}
           socket={socket}
           estadoConexion={estadoConexion}
-          abierto={chatAbierto}
-          onCambiarAbierto={setChatAbierto}
+          abierto={panelAbierto}
+          pestana={pestanaPanel}
+          onCambiarAbierto={setPanelAbierto}
+          onCambiarPestana={setPestanaPanel}
           resaltar={mensajeAResaltar}
+          nodos={nodes}
+          onIrAClase={irAClase}
         />
       </div>
 

@@ -1,14 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useChatGrupal } from '../../hooks/useChatGrupal'
 import { colorPorUsuario } from '../../utils/avatar'
 import MensajeFormateado from '../Asistente/MensajeFormateado'
 import styles from './ChatGrupal.module.css'
 
 const ALTO_MAX_INPUT = 120 // ~4 líneas
 const MARGEN_PEGADO_ABAJO = 40
-const ANCHO_PANEL = '360px'
-const ANCHO_RIEL = '56px'
 
 // Hoy solo la hora; otro día, también la fecha.
 function formatearHora(iso) {
@@ -140,15 +137,14 @@ function Mensaje({ mensaje, usuarioId, onResolverAccion }) {
   )
 }
 
-// CU15: chat del equipo, en una columna a la derecha del lienzo. Va fuera de
-// canvasRef, así no sale en la exportación a PNG. La pizarra controla si está
-// abierto porque las sugerencias de CU16 lo abren y resaltan un mensaje.
-function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbierto, resaltar }) {
+// CU15: chat del equipo, en la pestaña Chat de PanelLateral, que tiene el hook: el
+// contador de no leídos se ve también con el panel oculto. `visible` es si se está
+// mirando, y `resaltar`, un mensaje al que llevar (lo usan las sugerencias de CU16).
+function ChatGrupal({ chat, visible: abierto, resaltar }) {
   const { usuario } = useAuth()
   const [texto, setTexto] = useState('')
   const {
     mensajes,
-    noLeidos,
     agenteEscribiendo,
     hayAnteriores,
     errorCarga,
@@ -159,20 +155,13 @@ function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbie
     reintentarCarga,
     marcarLeidos,
     resolverAccion,
-  } = useChatGrupal(proyectoId, socket, abierto)
+  } = chat
 
   const listaRef = useRef(null)
   const inputRef = useRef(null)
   const pegadoAbajoRef = useRef(true)
   const alturaPreviaRef = useRef(null)
   const resaltadoRef = useRef(null)
-
-  // El botón del asistente flotante se corre para no tapar el chat.
-  useEffect(() => {
-    const raiz = document.documentElement
-    raiz.style.setProperty('--asistente-desplazamiento', abierto ? ANCHO_PANEL : ANCHO_RIEL)
-    return () => raiz.style.removeProperty('--asistente-desplazamiento')
-  }, [abierto])
 
   useEffect(() => {
     if (!abierto) return
@@ -244,62 +233,13 @@ function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbie
     }
   }
 
-  function handleTeclaPanel(event) {
-    if (event.key === 'Escape') onCambiarAbierto(false)
-  }
-
   async function handleCargarAnteriores() {
     alturaPreviaRef.current = listaRef.current.scrollHeight
     if (!(await cargarAnteriores())) alturaPreviaRef.current = null
   }
 
-  if (!abierto) {
-    return (
-      <nav className={styles.riel} aria-label="Chat del equipo (oculto)">
-        <button
-          type="button"
-          className={styles.botonRiel}
-          onClick={() => onCambiarAbierto(true)}
-          title="Abrir chat"
-          aria-label="Abrir chat"
-        >
-          <i className="ti ti-message-circle" />
-          {noLeidos > 0 && (
-            <span className={styles.contador} aria-label={`${noLeidos} sin leer`}>
-              {noLeidos > 99 ? '99+' : noLeidos}
-            </span>
-          )}
-        </button>
-      </nav>
-    )
-  }
-
   return (
-    <section className={styles.panel} aria-label="Chat del equipo" onKeyDown={handleTeclaPanel}>
-      <header className={styles.header}>
-        <span className={styles.titulo}>Chat</span>
-        <button
-          type="button"
-          className={styles.botonIcono}
-          onClick={() => onCambiarAbierto(false)}
-          title="Ocultar chat"
-          aria-label="Ocultar chat"
-        >
-          <i className="ti ti-layout-sidebar-right-collapse" />
-        </button>
-      </header>
-
-      {['desconectado', 'reconectando'].includes(estadoConexion) && (
-        <div className={styles.aviso} role="status">
-          <i className="ti ti-wifi-off" aria-hidden="true" /> Sin conexión, reintentando…
-        </div>
-      )}
-      {estadoConexion === 'rechazado' && (
-        <div className={styles.aviso} role="status">
-          <i className="ti ti-wifi-off" aria-hidden="true" /> Sin conexión. Recargá la página o volvé a iniciar sesión.
-        </div>
-      )}
-
+    <div className={styles.chat}>
       <div className={styles.mensajes} ref={listaRef} onScroll={handleScroll} aria-live="polite">
         {hayAnteriores && (
           <button type="button" className={styles.botonSecundario} onClick={handleCargarAnteriores}>
@@ -375,7 +315,7 @@ function ChatGrupal({ proyectoId, socket, estadoConexion, abierto, onCambiarAbie
           </button>
         </div>
       </form>
-    </section>
+    </div>
   )
 }
 

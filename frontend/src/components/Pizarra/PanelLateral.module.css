@@ -1,0 +1,165 @@
+/* ---------- Riel (panel oculto) ---------- */
+
+.riel {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--ui-barra);
+  border-left: 1px solid var(--ui-borde);
+}
+
+.botonRiel {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+}
+
+.botonRiel:hover,
+.botonRiel:focus-visible {
+  outline: none;
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.contador {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ia);
+  color: #04222a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- Panel ---------- */
+
+.panel {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ui-barra);
+  border-left: 1px solid var(--ui-borde);
+}
+
+.panel.oculto,
+.contenido.oculto {
+  display: none;
+}
+
+.header {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 0 8px;
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.pestanas {
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.pestana {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ui-texto-3);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pestana:hover,
+.pestana:focus-visible {
+  outline: none;
+  color: var(--ui-texto);
+}
+
+.pestanaActiva {
+  border-bottom-color: var(--ui-primario);
+  color: var(--ui-texto);
+}
+
+.contadorPestana {
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ia);
+  color: #04222a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.botonIcono {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 18px;
+}
+
+.botonIcono:hover {
+  background: #1e2230;
+  color: var(--ui-texto);
+}
+
+.aviso {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #6b4a12;
+  background: #241a08;
+  color: #fcd34d;
+  font-size: 13px;
+}
+
+.contenido {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

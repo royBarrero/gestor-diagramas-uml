@@ -176,6 +176,7 @@ function ClaseNode({ id, data }) {
       )}
 
       {sugerencia?.esParaMi && <div className={styles.marcoAlerta} data-no-exportar="true" />}
+      {data.resaltada && <div key={data.resaltada} className={styles.marcoResaltado} data-no-exportar="true" />}
 
       <Handle id="top" type="source" position={Position.Top} className={styles.handle} />
       <Handle id="right" type="source" position={Position.Right} className={styles.handle} />

@@ -1,0 +1,197 @@
+.historial {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Filtros ---------- */
+
+.filtros {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ui-borde);
+}
+
+.filtro {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 10px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 13px;
+}
+
+.filtro:focus-visible {
+  outline: none;
+  border-color: var(--ui-primario);
+}
+
+/* ---------- Lista ---------- */
+
+.lista {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+
+.entrada {
+  flex-shrink: 0;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ui-texto-2);
+  font: inherit;
+  text-align: left;
+}
+
+.entradaTocable {
+  cursor: pointer;
+}
+
+.entradaTocable:hover,
+.entradaTocable:focus-visible {
+  outline: none;
+  border-color: var(--ui-borde);
+  background: var(--ui-tarjeta);
+}
+
+.avatar,
+.avatarAgente {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatar {
+  color: #0e1017;
+}
+
+.avatarAgente {
+  background: var(--ia-bg);
+  border: 1px solid var(--ia-borde);
+  color: var(--ia);
+  font-size: 15px;
+}
+
+.cuerpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.texto {
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.texto b {
+  color: var(--ui-texto);
+  font-weight: 600;
+}
+
+.texto .nombreAgente {
+  color: var(--ia);
+}
+
+.leyenda {
+  color: var(--ia);
+  font-size: 12px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--ui-texto-3);
+  font-size: 12px;
+}
+
+.clase,
+.claseEliminada {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 1px 6px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 6px;
+  color: var(--ui-texto-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claseEliminada {
+  color: var(--ui-texto-3);
+  text-decoration: line-through;
+}
+
+.avisoEliminada {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fcd34d;
+  font-size: 12px;
+}
+
+/* ---------- Estados ---------- */
+
+.vacio {
+  margin: auto 0;
+  padding: 0 16px;
+  color: var(--ui-texto-3);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.errorCarga {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  color: var(--ui-error);
+  font-size: 13px;
+}
+
+.botonSecundario {
+  align-self: center;
+  flex-shrink: 0;
+  height: 32px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 8px;
+  background: var(--ui-tarjeta);
+  color: var(--ui-texto-2);
+  font-size: 13px;
+}
+
+.botonSecundario:hover:not(:disabled) {
+  background: #1e2230;
+  color: var(--ui-texto);
+}

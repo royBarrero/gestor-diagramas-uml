@@ -55,6 +55,30 @@
   z-index: 4;
 }
 
+/* CU18: la clase que se tocó en el historial. */
+.marcoResaltado {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--ui-primario);
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 4;
+  animation: resaltarClase 2s ease-out forwards;
+}
+
+@keyframes resaltarClase {
+  0%,
+  60% {
+    opacity: 1;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.25);
+  }
+
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 10px rgba(52, 211, 153, 0);
+  }
+}
+
 .botonAlerta,
 .botonSugerenciaAjena {
   flex-shrink: 0;
