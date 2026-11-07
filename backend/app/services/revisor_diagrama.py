@@ -23,6 +23,8 @@ from app.models.usuario import Usuario
 from app.schemas.mensaje_proyecto import MensajeOut
 from app.services import agente_sugerencias
 from app.services.ia_cliente import ServicioIANoDisponibleError
+from app.services.resumen_cambios import firma_clase, firma_relacion
+from app.services.temporizadores_clase import TemporizadoresPorClase
 
 logger = logging.getLogger(__name__)
 
@@ -34,42 +36,6 @@ MAX_LARGO_ID_CLASE = 100
 def _huella(valor) -> str:
     texto = json.dumps(valor, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()
-
-
-def _items_normalizados(items) -> list:
-    """Sin ids ni orden: reordenar una lista o regenerar ids no cambia la clase."""
-    if not isinstance(items, list):
-        return []
-    filas = [
-        [i.get("visibilidad"), i.get("tipo"), i.get("texto")]
-        for i in items
-        if isinstance(i, dict)
-    ]
-    return sorted(filas, key=str)
-
-
-def _firma_clase(nodo: dict) -> list:
-    """Solo lo que cuenta como cambio: moverla en el lienzo no cambia su firma."""
-    data = nodo.get("data") if isinstance(nodo.get("data"), dict) else {}
-    return [
-        data.get("nombre"),
-        _items_normalizados(data.get("atributos")),
-        _items_normalizados(data.get("metodos")),
-    ]
-
-
-def _firma_relacion(edge: dict) -> list:
-    """Sin el estilo de línea ni el estado de selección, que son solo visuales."""
-    data = edge.get("data") if isinstance(edge.get("data"), dict) else {}
-    return [
-        edge.get("source"),
-        edge.get("target"),
-        data.get("tipo"),
-        data.get("multiplicidadOrigen"),
-        data.get("multiplicidadDestino"),
-        data.get("nombre"),
-        data.get("claseAsociacion"),
-    ]
 
 
 class _Foto:
@@ -84,12 +50,12 @@ class _Foto:
             "edges": [e for e in edges if isinstance(e, dict)],
         }
         self.clases = {
-            n["id"]: _firma_clase(n)
+            n["id"]: firma_clase(n)
             for n in self.contenido["nodes"]
             if isinstance(n.get("id"), str) and len(n["id"]) <= MAX_LARGO_ID_CLASE
         }
         self.relaciones = {
-            e["id"]: _firma_relacion(e) for e in self.contenido["edges"] if isinstance(e.get("id"), str)
+            e["id"]: firma_relacion(e) for e in self.contenido["edges"] if isinstance(e.get("id"), str)
         }
 
     def relaciones_de(self, clase_id: str) -> list:
@@ -138,7 +104,7 @@ class RevisorDiagrama:
         self._seleccion: dict[int, dict[int, str]] = {}  # proyecto -> {usuario: clase}
         self._actividad: dict[int, dict[int, float]] = {}  # proyecto -> {usuario: instante}
         self._silenciados: set[int] = set()
-        self._temporizadores: dict[tuple[int, int, str], asyncio.Task] = {}
+        self._temporizadores = TemporizadoresPorClase(self._intentar_analisis)
         self._ultima_huella: dict[tuple[int, str], str] = {}
         self._ultimo_analisis: dict[tuple[int, str], float] = {}
         self._analisis_recientes: dict[int, deque[float]] = {}
@@ -168,13 +134,13 @@ class RevisorDiagrama:
         self._fotos[proyecto_id] = actual
 
         for clase_id in anterior.clases.keys() - actual.clases.keys():
-            self._cancelar(lambda clave, c=clase_id: clave[0] == proyecto_id and clave[2] == c)
+            self._temporizadores.cancelar(lambda clave, c=clase_id: clave[0] == proyecto_id and clave[2] == c)
 
         cambiadas = self._clases_a_revisar(proyecto_id, usuario_id, anterior, actual)
         if len(cambiadas) > self.max_clases_por_cambio:
             return
         for clase_id in cambiadas:
-            self._programar((proyecto_id, usuario_id, clase_id), self.espera_sin_cambios)
+            self._temporizadores.programar((proyecto_id, usuario_id, clase_id), self.espera_sin_cambios)
 
     @_sin_propagar
     def registrar_seleccion(self, proyecto_id: int, usuario_id: int, clase_id: str | None) -> None:
@@ -184,18 +150,18 @@ class RevisorDiagrama:
             seleccion[usuario_id] = clase_id
         else:
             seleccion.pop(usuario_id, None)
-        self._soltar(proyecto_id, usuario_id, salvo=clase_id)
+        self._temporizadores.soltar(proyecto_id, usuario_id, salvo=clase_id)
 
     @_sin_propagar
     def usuario_desconectado(self, proyecto_id: int, usuario_id: int) -> None:
         self._seleccion.get(proyecto_id, {}).pop(usuario_id, None)
         self._actividad.get(proyecto_id, {}).pop(usuario_id, None)
-        self._soltar(proyecto_id, usuario_id)
+        self._temporizadores.soltar(proyecto_id, usuario_id)
 
     @_sin_propagar
     def cancelar_usuario(self, proyecto_id: int, usuario_id: int) -> None:
         self._seleccion.get(proyecto_id, {}).pop(usuario_id, None)
-        self._cancelar(lambda clave: clave[0] == proyecto_id and clave[1] == usuario_id)
+        self._temporizadores.cancelar(lambda clave: clave[0] == proyecto_id and clave[1] == usuario_id)
 
     @_sin_propagar
     def registrar_actividad(self, proyecto_id: int, usuario_id: int) -> None:
@@ -224,7 +190,7 @@ class RevisorDiagrama:
     def silenciar(self, usuario_id: int, activo: bool) -> None:
         if activo:
             self._silenciados.add(usuario_id)
-            self._cancelar(lambda clave: clave[1] == usuario_id)
+            self._temporizadores.cancelar(lambda clave: clave[1] == usuario_id)
         else:
             self._silenciados.discard(usuario_id)
 
@@ -251,30 +217,6 @@ class RevisorDiagrama:
         # parecer un cambio en la clase que está editando otra persona.
         ajenas = {clase for usuario, clase in seleccion.items() if usuario != usuario_id}
         return {c for c in objetivos if c not in ajenas or c == propia}
-
-    # ---- Temporizadores ----
-
-    def _programar(self, clave: tuple[int, int, str], espera: float) -> None:
-        pendiente = self._temporizadores.get(clave)
-        if pendiente:
-            pendiente.cancel()
-        self._temporizadores[clave] = asyncio.create_task(self._esperar(clave, espera))
-
-    async def _esperar(self, clave: tuple[int, int, str], espera: float) -> None:
-        await asyncio.sleep(espera)
-        del self._temporizadores[clave]
-        self._intentar_analisis(clave)
-
-    def _cancelar(self, coincide: Callable[..., bool]) -> None:
-        for clave in [c for c in self._temporizadores if coincide(c)]:
-            self._temporizadores.pop(clave).cancel()
-
-    def _soltar(self, proyecto_id: int, usuario_id: int, salvo: str | None = None) -> None:
-        for clave in [
-            c for c in self._temporizadores if c[0] == proyecto_id and c[1] == usuario_id and c[2] != salvo
-        ]:
-            self._temporizadores.pop(clave).cancel()
-            self._intentar_analisis(clave)
 
     # ---- Análisis ----
 
@@ -306,7 +248,7 @@ class RevisorDiagrama:
         ahora = time.monotonic()
         espera = self._tiempo_hasta_poder_analizar(proyecto_id, clase_id, ahora)
         if espera > 0:
-            self._programar(clave, espera)
+            self._temporizadores.programar(clave, espera)
             return
 
         self._ultimo_analisis[(proyecto_id, clase_id)] = ahora

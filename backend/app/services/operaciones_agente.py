@@ -20,6 +20,7 @@ from app.realtime import (
     emitir_contenido,
     emitir_mensaje,
     emitir_mensaje_actualizado,
+    historial,
     nombre_en_sala,
     revisor,
 )
@@ -613,6 +614,9 @@ async def aplicar_operaciones(
             revisor.sincronizar(proyecto_id, antes)
         raise
 
+    # Recién acá: si no se pudo guardar, el cambio se revirtió y no pasó.
+    historial.registrar_operacion(proyecto_id, id_solicitante, "agente", antes, despues, por_agente=True)
+
     await emitir_contenido(diagrama_id, despues, cambios)
     await emitir_mensaje(salida)
     if sugerencia is not None:
@@ -715,6 +719,8 @@ async def deshacer(proyecto_id: int, accion_id: int, usuario_id: int, nombre: st
                 documentos.reemplazar(proyecto_id, actual)
                 revisor.sincronizar(proyecto_id, actual)
             raise
+
+        historial.registrar_operacion(proyecto_id, usuario_id, "deshacer", actual, restaurado)
 
         await emitir_contenido(diagrama_id, restaurado, cambios)
         await emitir_mensaje(aviso)

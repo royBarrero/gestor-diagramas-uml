@@ -35,3 +35,6 @@ class Proyecto(Base):
     acciones_agente = relationship(
         "AccionAgente", back_populates="proyecto", cascade="all, delete-orphan"
     )
+    historial = relationship(
+        "HistorialCambio", back_populates="proyecto", cascade="all, delete-orphan"
+    )

@@ -25,6 +25,7 @@ from app.services import comando_voz as servicio_voz
 from app.services import digitalizacion_imagen as servicio_imagen
 from app.services import exportacion_diagrama as servicio_exportacion
 from app.services import xmi_diagrama as servicio_xmi
+from app.services.historial_cambios import registrar_en_sesion
 from app.services.ia_cliente import ServicioIANoDisponibleError
 
 FORMATOS_EXPORTACION = "^(json|xmi)$"
@@ -108,7 +109,11 @@ def actualizar_diagrama(
     # estar atrasado, y su diagrama completo pisaría cambios ajenos o del agente. Sus
     # propias ediciones llegan por el socket; si no llegaron, siguen pendientes y las
     # reenvía al reconectar.
-    diagrama.contenido = documentos.obtener(diagrama.id_proyecto) or datos.contenido
+    vivo = documentos.obtener(diagrama.id_proyecto)
+    if not vivo:
+        # CU18: las ediciones con socket se registran al llegar; estas no pasaron por ahí.
+        registrar_en_sesion(db, diagrama.id_proyecto, usuario_actual.id, diagrama.contenido or {}, datos.contenido)
+    diagrama.contenido = vivo or datos.contenido
     db.commit()
     db.refresh(diagrama)
 
@@ -144,7 +149,8 @@ async def procesar_comando_voz(
 
     # Sin `await` de acá hasta que publicar_contenido reemplaza el documento: se aplica sobre
     # lo último, incluido lo editado durante la espera, y nada puede intercalarse.
-    nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(_contenido_actual(diagrama), resultado)
+    antes = _contenido_actual(diagrama)
+    nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(antes, resultado)
     if aplicadas == 0:
         return ComandoVozOut(estado="no_entendido", mensaje=" ".join(errores), transcripcion=texto)
 
@@ -158,7 +164,7 @@ async def procesar_comando_voz(
     db.commit()
     db.refresh(diagrama)
 
-    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido, "voz", antes)
 
     return ComandoVozOut(estado="aplicado", mensaje=mensaje, contenido=nuevo_contenido, transcripcion=texto)
 
@@ -195,13 +201,14 @@ async def digitalizar_imagen(
 
     # Sin `await` de acá hasta que publicar_contenido reemplaza el documento: se aplica sobre
     # lo último, incluido lo editado durante la espera, y nada puede intercalarse.
-    nuevo_contenido, relaciones_omitidas = servicio_imagen.construir_contenido(_contenido_actual(diagrama), resultado)
+    antes = _contenido_actual(diagrama)
+    nuevo_contenido, relaciones_omitidas = servicio_imagen.construir_contenido(antes, resultado)
 
     diagrama.contenido = nuevo_contenido
     db.commit()
     db.refresh(diagrama)
 
-    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido, "foto", antes)
 
     advertencia = resultado.get("advertencia")
     if relaciones_omitidas:
@@ -280,10 +287,11 @@ async def importar_diagrama(
     except servicio_exportacion.ArchivoInvalidoError as exc:
         return ImportacionOut(estado="formato_invalido", mensaje=str(exc))
 
+    antes = _contenido_actual(diagrama)
     diagrama.contenido = nuevo_contenido
     db.commit()
     db.refresh(diagrama)
 
-    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido)
+    await publicar_contenido(diagrama.id_proyecto, diagrama.id, usuario_actual.id, nuevo_contenido, "importacion", antes)
 
     return ImportacionOut(estado="aplicado", mensaje="Diagrama importado correctamente.", contenido=nuevo_contenido)

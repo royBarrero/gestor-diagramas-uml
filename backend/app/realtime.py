@@ -16,7 +16,9 @@ from app.core.deps import obtener_usuario_desde_token
 from app.core.permisos import obtener_proyecto_o_404, rol_de_usuario_en_proyecto
 from app.models.diagrama import Diagrama
 from app.schemas.mensaje_proyecto import MensajeOut
+from app.schemas.historial_cambio import HistorialOut
 from app.services.documento_vivo import DocumentosVivos
+from app.services.historial_cambios import HistorialCambios
 from app.services.revisor_diagrama import RevisorDiagrama
 
 logger = logging.getLogger(__name__)
@@ -51,10 +53,17 @@ async def emitir_mensaje_actualizado(mensaje: MensajeOut) -> None:
     )
 
 
+async def emitir_historial(entrada: HistorialOut) -> None:
+    """CU18: una entrada nueva del historial, para que la lista se actualice en vivo."""
+    await sio.emit("historial_cambio", entrada.model_dump(mode="json"), room=room_proyecto(entrada.id_proyecto))
+
+
 # CU16: sugerencias automáticas del agente sobre las clases que se editan.
 revisor = RevisorDiagrama(publicar=emitir_mensaje)
 # CU17: la versión viva de cada diagrama, que no depende del autoguardado de nadie.
 documentos = DocumentosVivos()
+# CU18: quién cambió qué y cuándo.
+historial = HistorialCambios(publicar=emitir_historial)
 
 
 async def emitir_contenido(diagrama_id: int, contenido: dict, cambios: dict) -> None:
@@ -63,9 +72,13 @@ async def emitir_contenido(diagrama_id: int, contenido: dict, cambios: dict) -> 
     await sio.emit("cambio_diagrama", {**contenido, "cambios": cambios}, room=_room(diagrama_id))
 
 
-async def publicar_contenido(proyecto_id: int, diagrama_id: int, usuario_id: int, contenido: dict) -> None:
-    """Un cambio de un endpoint a pedido de un usuario (voz, foto, importación)."""
+async def publicar_contenido(
+    proyecto_id: int, diagrama_id: int, usuario_id: int, contenido: dict, origen: str, antes: dict
+) -> None:
+    """Un cambio de un endpoint a pedido de un usuario (voz, foto, importación). `antes` lo
+    pasa quien llama porque, sin nadie conectado, no hay documento vivo."""
     cambios = documentos.reemplazar(proyecto_id, contenido)
+    historial.registrar_operacion(proyecto_id, usuario_id, origen, antes, contenido)
     await emitir_contenido(diagrama_id, contenido, cambios)
     revisor.registrar_cambio(proyecto_id, usuario_id, contenido)
 
@@ -175,9 +188,11 @@ async def disconnect(sid):
         # Con otra pestaña abierta el usuario sigue en la pizarra.
         if not any(info["id"] == sesion["usuario_id"] for info in sala.values()):
             revisor.usuario_desconectado(sesion["proyecto_id"], sesion["usuario_id"])
+            historial.usuario_desconectado(sesion["proyecto_id"], sesion["usuario_id"])
         if not sala:
             salas.pop(room, None)
             revisor.cerrar_proyecto(sesion["proyecto_id"])
+            historial.cerrar_proyecto(sesion["proyecto_id"])
             await _cerrar_documento(room, sesion["proyecto_id"], sesion["diagrama_id"])
         await _emitir_colaboradores(room)
 
@@ -202,7 +217,11 @@ async def cambio_diagrama(sid, data):
     # difundiría el cambio a todos los clientes conectados.
     if sesion and sesion["room"]:
         # Sin `await` antes de esto: ningún cambio del agente puede intercalarse.
+        antes = documentos.obtener(sesion["proyecto_id"])
         contenido = documentos.aplicar_mensaje(sesion["proyecto_id"], data)
+        if contenido is not None:
+            propia = salas.get(sesion["room"], {}).get(sid, {}).get("claseId")
+            historial.registrar_edicion(sesion["proyecto_id"], sesion["usuario_id"], antes, contenido, propia)
         await sio.emit("cambio_diagrama", data, room=sesion["room"], skip_sid=sid)
         revisor.registrar_cambio(
             sesion["proyecto_id"], sesion["usuario_id"], contenido if contenido is not None else data
@@ -222,6 +241,7 @@ async def seleccion(sid, data):
         clase_id = clase_id if isinstance(clase_id, str) else None
         salas[room][sid]["claseId"] = clase_id
         revisor.registrar_seleccion(sesion["proyecto_id"], sesion["usuario_id"], clase_id)
+        historial.registrar_seleccion(sesion["proyecto_id"], sesion["usuario_id"], clase_id)
         await _emitir_colaboradores(room)
 
 

@@ -68,6 +68,7 @@ class EscenarioBase(unittest.IsolatedAsyncioTestCase):
         self.sio_emit = self._parchar(patch.object(realtime.sio, "emit", AsyncMock()))
         # Sin temporizadores de CU16: acá no interesa el análisis de la clase.
         self._parchar(patch.object(realtime.revisor, "registrar_cambio"))
+        self._parchar(patch.object(realtime.historial, "registrar_operacion"))
         self._parchar(patch.object(operaciones_agente, "_leer_diagrama", return_value=(DIAGRAMA_ID, BASE_ATRASADA)))
         self._parchar(patch.object(operaciones_agente, "_es_miembro", return_value=True))
         self._parchar(patch.object(operaciones_agente, "_guardar_aplicacion", return_value=("resumen", None)))

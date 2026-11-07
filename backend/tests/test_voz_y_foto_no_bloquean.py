@@ -70,6 +70,7 @@ class NoBloqueanTest(unittest.IsolatedAsyncioTestCase):
         for parche in (
             patch.object(realtime.sio, "emit", AsyncMock()),
             patch.object(realtime.revisor, "registrar_cambio"),
+            patch.object(realtime.historial, "registrar_operacion"),
             patch.object(diagramas, "_obtener_diagrama_o_404", return_value=self.diagrama),
             patch.object(diagramas, "obtener_proyecto_o_404"),
             patch.object(diagramas, "exigir_miembro"),
