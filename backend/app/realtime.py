@@ -130,6 +130,9 @@ async def connect(sid, environ, auth):
 
     query = parse_qs(environ.get("QUERY_STRING", ""))
     diagrama_id = (query.get("diagramaId") or [None])[0]
+    # CU19: la app móvil solo mira. Recibe los cambios, el chat y el historial, pero no
+    # figura como conectada en la pizarra ni puede enviar cambios.
+    solo_lectura = (query.get("modo") or [None])[0] == "lectura"
     if diagrama_id is not None:
         try:
             diagrama_id = int(diagrama_id)
@@ -166,6 +169,7 @@ async def connect(sid, environ, auth):
             "proyecto_id": proyecto_id,
             "usuario_id": usuario.id,
             "nombre": usuario.nombre,
+            "solo_lectura": solo_lectura,
         },
     )
     await sio.enter_room(sid, room_usuario(usuario.id))
@@ -173,6 +177,8 @@ async def connect(sid, environ, auth):
     if room:
         await sio.enter_room(sid, room)
         await sio.enter_room(sid, room_proyecto(proyecto_id))
+        if solo_lectura:
+            return
         salas.setdefault(room, {})[sid] = {"id": usuario.id, "nombre": usuario.nombre, "claseId": None}
         revisor.abrir_proyecto(proyecto_id, documentos.abrir(proyecto_id, contenido))
         await _emitir_colaboradores(room)
@@ -182,7 +188,7 @@ async def connect(sid, environ, auth):
 async def disconnect(sid):
     sesion = await sio.get_session(sid)
     room = sesion.get("room") if sesion else None
-    if room:
+    if room and not sesion.get("solo_lectura"):
         sala = salas.get(room, {})
         sala.pop(sid, None)
         # Con otra pestaña abierta el usuario sigue en la pizarra.
@@ -215,7 +221,7 @@ async def cambio_diagrama(sid, data):
     sesion = await sio.get_session(sid)
     # Sin sala (socket conectado sin diagramaId) no se reenvía: room=None
     # difundiría el cambio a todos los clientes conectados.
-    if sesion and sesion["room"]:
+    if sesion and sesion["room"] and not sesion.get("solo_lectura"):
         # Sin `await` antes de esto: ningún cambio del agente puede intercalarse.
         antes = documentos.obtener(sesion["proyecto_id"])
         contenido = documentos.aplicar_mensaje(sesion["proyecto_id"], data)
@@ -233,7 +239,7 @@ async def cambio_diagrama(sid, data):
 @sio.event
 async def seleccion(sid, data):
     sesion = await sio.get_session(sid)
-    if not sesion:
+    if not sesion or sesion.get("solo_lectura"):
         return
     room = sesion["room"]
     if sid in salas.get(room, {}):
@@ -250,7 +256,7 @@ async def actividad(sid):
     """CU17: tocar teclado o mouse con una clase seleccionada, aunque todavía no haya
     un cambio que enviar (por ejemplo, escribiendo un nombre largo)."""
     sesion = await sio.get_session(sid)
-    if sesion and sesion["room"]:
+    if sesion and sesion["room"] and not sesion.get("solo_lectura"):
         revisor.registrar_actividad(sesion["proyecto_id"], sesion["usuario_id"])
 
 
