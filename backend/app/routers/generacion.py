@@ -17,6 +17,7 @@ from app.core.deps import get_current_user
 from app.core.permisos import exigir_administrador, obtener_proyecto_o_404
 from app.models.diagrama import Diagrama
 from app.models.usuario import Usuario
+from app.realtime import documentos
 from app.services import generacion_backend as servicio_backend
 from app.services import generacion_frontend as servicio_frontend
 from app.services.modelo_backend import GeneracionInvalidaError
@@ -25,6 +26,10 @@ router = APIRouter(prefix="/proyectos", tags=["generacion"])
 
 
 def _contenido_diagrama(proyecto_id: int, db: Session) -> dict:
+    """La versión viva si hay alguien conectado: la base puede estar atrasada."""
+    vivo = documentos.obtener(proyecto_id)
+    if vivo:
+        return vivo
     diagrama = db.query(Diagrama).filter(Diagrama.id_proyecto == proyecto_id).first()
     return diagrama.contenido if diagrama else {"nodes": [], "edges": []}
 

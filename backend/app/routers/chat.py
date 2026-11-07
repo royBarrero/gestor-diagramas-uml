@@ -197,7 +197,12 @@ async def pedir_correccion(
     contenido = documentos.obtener(proyecto_id) or (diagrama.contenido if diagrama else {}) or {}
     clase = next((n for n in contenido.get("nodes", []) if n.get("id") == sugerencia.elemento_referenciado), None)
     if clase is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "La clase de esa sugerencia ya no existe.")
+        # No se busca por nombre: una clase recreada puede tener otro contenido.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "La clase de esa sugerencia se eliminó. Si la volviste a crear es una clase nueva, "
+            "y esta sugerencia no se le aplica.",
+        )
     nombre_clase = (clase.get("data") or {}).get("nombre")
 
     mensaje = MensajeProyecto(
@@ -214,6 +219,7 @@ async def pedir_correccion(
     await emitir_mensaje(salida)
 
     consulta = (
+        f"La clase {nombre_clase} existe en el diagrama actual. "
         f"Aplicá en la clase {nombre_clase} la corrección que propusiste en esta sugerencia. Si propone varias "
         f"alternativas, elegí la más directa, y si no dice concretamente qué cambiar, pedí aclaración.\n"
         f"Sugerencia: {sugerencia.texto}"

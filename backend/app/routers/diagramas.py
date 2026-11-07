@@ -5,6 +5,7 @@ diagrama a partir de una fotografía. CU10: exportación e importación de
 diagramas (JSON y XMI; la imagen es 100% client-side, ver useExportarImagen.js).
 """
 
+import asyncio
 import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -129,13 +130,20 @@ async def procesar_comando_voz(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El archivo enviado no es de audio.")
 
     audio_bytes = await audio.read()
+    contenido_inicial = _contenido_actual(diagrama)
+    # La conexión no queda tomada mientras se espera a la IA, y `diagrama` se relee después.
+    db.commit()
 
     try:
-        texto = servicio_voz.transcribir_audio(audio_bytes, audio.filename or "comando.webm", _contenido_actual(diagrama))
-        resultado = servicio_voz.interpretar_comando(texto, _contenido_actual(diagrama))
+        texto = await asyncio.to_thread(
+            servicio_voz.transcribir_audio, audio_bytes, audio.filename or "comando.webm", contenido_inicial
+        )
+        resultado = await asyncio.to_thread(servicio_voz.interpretar_comando, texto, contenido_inicial)
     except servicio_voz.ServicioIANoDisponibleError as exc:
         return ComandoVozOut(estado="error_ia", mensaje=str(exc))
 
+    # Sin `await` de acá hasta que publicar_contenido reemplaza el documento: se aplica sobre
+    # lo último, incluido lo editado durante la espera, y nada puede intercalarse.
     nuevo_contenido, aplicadas, errores = servicio_voz.aplicar_acciones(_contenido_actual(diagrama), resultado)
     if aplicadas == 0:
         return ComandoVozOut(estado="no_entendido", mensaje=" ".join(errores), transcripcion=texto)
@@ -170,9 +178,11 @@ async def digitalizar_imagen(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El archivo enviado no es una imagen.")
 
     imagen_bytes = await imagen.read()
+    # La conexión no queda tomada mientras se espera a la IA, y `diagrama` se relee después.
+    db.commit()
 
     try:
-        resultado = servicio_imagen.interpretar_imagen(imagen_bytes, imagen.content_type)
+        resultado = await asyncio.to_thread(servicio_imagen.interpretar_imagen, imagen_bytes, imagen.content_type)
     except ServicioIANoDisponibleError as exc:
         return DigitalizacionOut(estado="error_ia", mensaje=str(exc))
 
@@ -183,6 +193,8 @@ async def digitalizar_imagen(
         mensaje = resultado.get("advertencia") or "No se pudo reconocer ningún elemento en la imagen."
         return DigitalizacionOut(estado="fallido", mensaje=mensaje)
 
+    # Sin `await` de acá hasta que publicar_contenido reemplaza el documento: se aplica sobre
+    # lo último, incluido lo editado durante la espera, y nada puede intercalarse.
     nuevo_contenido, relaciones_omitidas = servicio_imagen.construir_contenido(_contenido_actual(diagrama), resultado)
 
     diagrama.contenido = nuevo_contenido
@@ -225,15 +237,16 @@ def exportar_diagrama(
     exigir_miembro(proyecto, usuario_actual, db)
 
     nombre_archivo = servicio_exportacion.nombre_archivo_descarga(diagrama.nombre, formato)
+    contenido = _contenido_actual(diagrama)
 
     if formato == "xmi":
         try:
-            contenido_str = servicio_xmi.contenido_a_xmi(diagrama.contenido, diagrama.nombre)
+            contenido_str = servicio_xmi.contenido_a_xmi(contenido, diagrama.nombre)
         except servicio_exportacion.ArchivoInvalidoError as exc:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
         media_type = "application/xml"
     else:
-        contenido_str = json.dumps(diagrama.contenido, ensure_ascii=False, indent=2)
+        contenido_str = json.dumps(contenido, ensure_ascii=False, indent=2)
         media_type = "application/json"
 
     return Response(

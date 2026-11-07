@@ -31,6 +31,14 @@ _PROMPT_SISTEMA = (
     "atributos y relaciones tal como aparecen en el diagrama.\n\n"
     "Usá el nombre y la descripción del proyecto para entender su dominio. Si no hay "
     "descripción, deducí el dominio por los nombres de las clases.\n\n"
+    "El estado actual del diagrama es la única fuente de verdad sobre qué clases, atributos "
+    "y relaciones existen ahora. Está por encima de la conversación previa, incluidos tus "
+    "propios mensajes anteriores: el diagrama también cambia por el editor, la voz, una foto "
+    "o una importación, y eso no queda en el chat. Si la conversación dice que algo se eliminó "
+    "o no existe pero figura en el estado actual, existe; y al revés. Nunca digas que una clase "
+    "no existe o fue eliminada si figura en el estado actual.\n\n"
+    "Si te cuentan algo ya hecho ('ya la creé'), eso no es un pedido de cambio: comprobalo en "
+    "el estado actual y respondé con texto, sin llamar herramientas.\n\n"
     "Decidí qué te piden en el ÚLTIMO mensaje:\n"
     "- Una pregunta u opinión: respondé con texto. No llames herramientas.\n"
     "- Un cambio en el diagrama: llamá las herramientas necesarias, una por cada "
@@ -384,6 +392,15 @@ def _describir_historial(historial: list[dict]) -> str:
     return "\n".join(lineas) or "(sin mensajes)"
 
 
+def _describir_estado_actual(proyecto_nombre: str, proyecto_descripcion: str | None, contenido: dict) -> str:
+    nombres = ", ".join(str((n.get("data") or {}).get("nombre")) for n in contenido.get("nodes") or [])
+    return (
+        "ESTADO ACTUAL DEL DIAGRAMA (leído recién; lo que digan los mensajes anteriores puede estar viejo).\n"
+        f"Clases que existen ahora: {nombres or '(ninguna)'}\n\n"
+        f"{_describir_diagrama(proyecto_nombre, proyecto_descripcion, contenido)}"
+    )
+
+
 def interpretar_mencion(
     autor: str,
     consulta: str,
@@ -401,16 +418,17 @@ def interpretar_mencion(
     `historial` es la conversación previa, del mensaje más viejo al más nuevo. Va como
     datos y no como turnos: un pedido viejo no tiene que volver a ejecutarse.
 
+    El estado actual va después del historial a propósito: con el diagrama antes, el modelo
+    le creía a un "Eliminé la clase X" viejo, y pedírselo solo en el prompt no alcanzó.
+
     Lanza ServicioIANoDisponibleError si falla la llamada a OpenAI.
     """
     cliente = cliente_openai()
-    datos = (
-        f"<datos>\n{_describir_diagrama(proyecto_nombre, proyecto_descripcion, contenido)}\n\n"
-        f"Conversación previa:\n{_describir_historial(historial)}\n</datos>"
-    )
+    estado = _describir_estado_actual(proyecto_nombre, proyecto_descripcion, contenido)
     mensajes = [
         {"role": "system", "content": _PROMPT_SISTEMA},
-        {"role": "system", "content": datos},
+        {"role": "system", "content": f"<datos>\nConversación previa:\n{_describir_historial(historial)}\n</datos>"},
+        {"role": "system", "content": f"<datos>\n{estado}\n</datos>"},
         {"role": "user", "content": f"{autor}: {consulta}"},
     ]
 
