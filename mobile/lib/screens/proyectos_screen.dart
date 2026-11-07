@@ -39,18 +39,23 @@ class _ProyectosScreenState extends State<ProyectosScreen> {
     _cargar();
   }
 
-  Future<void> _cargar() async {
-    setState(() => _error = null);
+  /// Con [silencioso] (al volver de un proyecto) no se muestra el error: si
+  /// falla, la lista queda como estaba.
+  Future<void> _cargar({bool silencioso = false}) async {
+    if (!silencioso) setState(() => _error = null);
     try {
       final proyectos = await _servicio.misProyectos();
       if (!mounted) return;
-      setState(() => _proyectos = proyectos);
+      setState(() {
+        _proyectos = proyectos;
+        _error = null;
+      });
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
         await _cerrarSesion();
         return;
       }
-      if (!mounted) return;
+      if (!mounted || silencioso) return;
       setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _cargando = false);
@@ -94,10 +99,12 @@ class _ProyectosScreenState extends State<ProyectosScreen> {
     if (confirmar == true) await _cerrarSesion();
   }
 
-  void _abrir(Proyecto proyecto) {
-    Navigator.of(context).push(
+  Future<void> _abrir(Proyecto proyecto) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ProyectoScreen(proyecto: proyecto, usuario: widget.usuario)),
     );
+    // Al volver: las tarjetas pueden haber quedado viejas (clases, fecha del último cambio).
+    if (mounted) _cargar(silencioso: true);
   }
 
   List<Proyecto> get _visibles => switch (_filtro) {
