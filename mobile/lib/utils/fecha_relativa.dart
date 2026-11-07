@@ -25,3 +25,14 @@ String fechaRelativa(DateTime? fecha) {
   final anios = dias ~/ 365;
   return anios == 1 ? 'El año pasado' : 'Hace $anios años';
 }
+
+/// Hora de un mensaje: hoy solo "14:05"; otro día también la fecha "03/11 14:05".
+/// El backend manda la fecha con zona horaria; se muestra en la hora del celular.
+String formatearHora(DateTime fechaRecibida) {
+  final fecha = fechaRecibida.toLocal();
+  String dos(int n) => n.toString().padLeft(2, '0');
+  final hora = '${dos(fecha.hour)}:${dos(fecha.minute)}';
+  final hoy = DateTime.now();
+  final esHoy = fecha.year == hoy.year && fecha.month == hoy.month && fecha.day == hoy.day;
+  return esHoy ? hora : '${dos(fecha.day)}/${dos(fecha.month)} $hora';
+}

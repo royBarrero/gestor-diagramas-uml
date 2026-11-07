@@ -14,11 +14,31 @@ class Diagrama {
   });
 
   factory Diagrama.fromJson(Map<String, dynamic> json) {
-    final contenido = (json['contenido'] as Map?) ?? {};
+    final updatedAt = json['updated_at'] as String?;
+    return Diagrama.desdeContenido(
+      id: json['id'] as int,
+      contenido: ((json['contenido'] as Map?) ?? {}).cast<String, dynamic>(),
+      updatedAt: updatedAt == null ? null : DateTime.parse(updatedAt),
+    );
+  }
+
+  /// Arma el diagrama desde el `contenido` de React Flow (el de la API o el que
+  /// llega por el socket). Si una clase llega sin el ancho medido en la web, se
+  /// conserva el de [anterior] para que no cambie de tamaño.
+  factory Diagrama.desdeContenido({
+    required int id,
+    required Map<String, dynamic> contenido,
+    required DateTime? updatedAt,
+    Diagrama? anterior,
+  }) {
+    final anchosPrevios = {for (final c in anterior?.clases ?? <ClaseUml>[]) c.id: c.anchoWeb};
     final clases = ((contenido['nodes'] as List?) ?? [])
         .whereType<Map>()
         .where((n) => n['type'] == null || n['type'] == 'clase')
         .map((n) => ClaseUml.fromJson(n.cast<String, dynamic>()))
+        .map((c) => c.anchoWeb == null && anchosPrevios[c.id] != null
+            ? c.conAnchoWeb(anchosPrevios[c.id])
+            : c)
         .toList();
     final ids = {for (final c in clases) c.id};
     // Una relación hacia una clase que ya no existe no se puede dibujar.
@@ -27,14 +47,8 @@ class Diagrama {
         .map((e) => RelacionUml.fromJson(e.cast<String, dynamic>()))
         .where((r) => ids.contains(r.origen) && ids.contains(r.destino))
         .toList();
-    final updatedAt = json['updated_at'] as String?;
 
-    return Diagrama(
-      id: json['id'] as int,
-      clases: clases,
-      relaciones: relaciones,
-      updatedAt: updatedAt == null ? null : DateTime.parse(updatedAt),
-    );
+    return Diagrama(id: id, clases: clases, relaciones: relaciones, updatedAt: updatedAt);
   }
 }
 
@@ -58,6 +72,16 @@ class ClaseUml {
     required this.atributos,
     required this.metodos,
   });
+
+  ClaseUml conAnchoWeb(double? ancho) => ClaseUml(
+        id: id,
+        nombre: nombre,
+        x: x,
+        y: y,
+        anchoWeb: ancho,
+        atributos: atributos,
+        metodos: metodos,
+      );
 
   factory ClaseUml.fromJson(Map<String, dynamic> json) {
     final data = (json['data'] as Map?)?.cast<String, dynamic>() ?? {};

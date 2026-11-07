@@ -96,7 +96,7 @@ class _ProyectosScreenState extends State<ProyectosScreen> {
 
   void _abrir(Proyecto proyecto) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProyectoScreen(proyecto: proyecto)),
+      MaterialPageRoute(builder: (_) => ProyectoScreen(proyecto: proyecto, usuario: widget.usuario)),
     );
   }
 

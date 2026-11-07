@@ -69,4 +69,33 @@ void main() {
     expect(g.anguloOrigen, closeTo(math.pi / 2, 1e-9));
     expect(g.anguloDestino, closeTo(math.pi / 2, 1e-9));
   });
+
+  test('un cambio por socket sin ancho medido conserva el ancho anterior', () {
+    final anterior = Diagrama.desdeContenido(
+      id: 1,
+      updatedAt: null,
+      contenido: {
+        'nodes': [
+          {'id': 'a', 'type': 'clase', 'position': {'x': 0, 'y': 0}, 'measured': {'width': 320}, 'data': {'nombre': 'A'}},
+        ],
+        'edges': [],
+      },
+    );
+    final nuevo = Diagrama.desdeContenido(
+      id: 1,
+      updatedAt: null,
+      anterior: anterior,
+      contenido: {
+        'nodes': [
+          {'id': 'a', 'type': 'clase', 'position': {'x': 50, 'y': 0}, 'data': {'nombre': 'A2'}},
+          {'id': 'b', 'type': 'clase', 'position': {'x': 400, 'y': 0}, 'data': {'nombre': 'B'}},
+        ],
+        'edges': [],
+        'cambios': {},
+      },
+    );
+    expect(nuevo.clases.first.anchoWeb, 320);
+    expect(nuevo.clases.first.nombre, 'A2');
+    expect(nuevo.clases.last.anchoWeb, isNull);
+  });
 }

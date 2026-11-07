@@ -39,7 +39,16 @@ class _VisorDiagramaState extends State<VisorDiagrama> {
   void didUpdateWidget(covariant VisorDiagrama oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.diagrama != widget.diagrama) {
+      // Llegó una versión nueva (ej. por el socket): no se reencuadra. Si cambió
+      // el desplazamiento del lienzo (una clase quedó más a la izquierda o más
+      // arriba que todas), se compensa para que la vista no salte.
+      final anterior = _lienzo.desplazamiento;
       _lienzo = _Lienzo.desde(widget.diagrama, _margen);
+      final delta = _lienzo.desplazamiento - anterior;
+      if (delta != Offset.zero) {
+        _controller.value =
+            _controller.value.multiplied(Matrix4.translationValues(-delta.dx, -delta.dy, 0));
+      }
     }
   }
 
@@ -123,12 +132,13 @@ class _VisorDiagramaState extends State<VisorDiagrama> {
 /// haya coordenadas negativas, que React Flow sí permite).
 class _Lienzo {
   final Size tamano;
+  final Offset desplazamiento;
   final Rect contenido;
   final Map<String, Rect> rects;
   final List<ClaseUml> clases;
   final List<RelacionDibujable> relaciones;
 
-  _Lienzo(this.tamano, this.contenido, this.rects, this.clases, this.relaciones);
+  _Lienzo(this.tamano, this.desplazamiento, this.contenido, this.rects, this.clases, this.relaciones);
 
   factory _Lienzo.desde(Diagrama diagrama, double margen) {
     final clases = diagrama.clases;
@@ -177,7 +187,7 @@ class _Lienzo {
       maxY + desplazamiento.dy,
     );
     final tamano = Size(contenido.right + margen, contenido.bottom + margen);
-    return _Lienzo(tamano, contenido, rects, clases, relaciones);
+    return _Lienzo(tamano, desplazamiento, contenido, rects, clases, relaciones);
   }
 
   Widget construir() {

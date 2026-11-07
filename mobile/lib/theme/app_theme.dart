@@ -22,6 +22,12 @@ class AppColors {
   static const tipo = Color(0xFF7DD3FC);
   static const estereotipoBg = Color(0xFF1E2230);
   static const bordeEtiqueta = Color(0xFF2C3140);
+
+  // Color de la IA (agente del chat grupal, sugerencias): --ia-*.
+  static const ia = Color(0xFF22D3EE);
+  static const iaClaro = Color(0xFF67E8F9);
+  static const iaBg = Color(0xFF0B2229);
+  static const iaBorde = Color(0xFF155E6E);
 }
 
 class AppTheme {

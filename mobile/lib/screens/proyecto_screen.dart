@@ -2,37 +2,94 @@ import 'package:flutter/material.dart';
 
 import '../models/diagrama.dart';
 import '../models/proyecto.dart';
+import '../models/usuario.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/diagrama_service.dart';
+import '../services/tiempo_real_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/fecha_relativa.dart';
+import '../utils/sesion.dart';
 import '../widgets/diagrama/visor_diagrama.dart';
 import '../widgets/mensaje_error.dart';
-import 'login_screen.dart';
+import 'tabs/chat_tab.dart';
+import 'tabs/historial_tab.dart';
 
-/// CU19 - Pasos 3 y 4: el usuario selecciona un proyecto y el sistema
-/// muestra el diagrama de clases actual (solo lectura).
+/// CU19 - Pasos 3 a 5: el usuario selecciona un proyecto y consulta, en
+/// solo lectura, el diagrama de clases actual, el historial y el chat.
 class ProyectoScreen extends StatefulWidget {
   final Proyecto proyecto;
+  final Usuario usuario;
 
-  const ProyectoScreen({super.key, required this.proyecto});
+  const ProyectoScreen({super.key, required this.proyecto, required this.usuario});
 
   @override
   State<ProyectoScreen> createState() => _ProyectoScreenState();
 }
 
-class _ProyectoScreenState extends State<ProyectoScreen> {
+class _ProyectoScreenState extends State<ProyectoScreen> with SingleTickerProviderStateMixin {
   final _servicio = DiagramaService();
+  final _historialKey = GlobalKey<HistorialTabState>();
+  final _chatKey = GlobalKey<ChatTabState>();
+  late final TabController _tabs = TabController(length: 3, vsync: this)
+    ..addListener(() => setState(() {}));
 
   Diagrama? _diagrama;
   ApiException? _error;
   bool _cargando = true;
+  TiempoRealService? _tiempoReal;
+  EstadoConexion? _estadoConexion;
 
   @override
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  @override
+  void dispose() {
+    _tiempoReal?.cerrar();
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  /// Socket en modo lectura: lo que se edita en la web llega solo (CU07 → CU19).
+  Future<void> _conectarTiempoReal(int diagramaId) async {
+    final token = await AuthService().obtenerToken();
+    if (!mounted || token == null || _tiempoReal != null) return;
+
+    final servicio = TiempoRealService(diagramaId: diagramaId, token: token)
+      // En cada conexión (también al reconectar) se pone al día con lo que pasó
+      // mientras no estaba conectado, como hace la pizarra web.
+      ..onConectado = _recargarTodo
+      ..onEstado = (estado) {
+        if (mounted) setState(() => _estadoConexion = estado);
+      }
+      ..onCambioDiagrama = (contenido) {
+        final actual = _diagrama;
+        if (!mounted || actual == null) return;
+        setState(() {
+          _diagrama = Diagrama.desdeContenido(
+            id: actual.id,
+            contenido: contenido,
+            updatedAt: DateTime.now(),
+            anterior: actual,
+          );
+        });
+      }
+      ..onMensaje = ((m) => _chatKey.currentState?.agregar(m))
+      ..onMensajeActualizado = ((m) => _chatKey.currentState?.actualizar(m))
+      ..onAgenteEscribiendo = ((activo) => _chatKey.currentState?.agenteEscribiendo(activo))
+      ..onHistorial = ((e) => _historialKey.currentState?.agregar(e));
+    _tiempoReal = servicio;
+    servicio.conectar();
+  }
+
+  /// El botón de actualizar recarga las tres pestañas.
+  void _recargarTodo() {
+    _cargar();
+    _historialKey.currentState?.recargar();
+    _chatKey.currentState?.recargar();
   }
 
   Future<void> _cargar() async {
@@ -44,14 +101,10 @@ class _ProyectoScreenState extends State<ProyectoScreen> {
       final diagrama = await _servicio.obtenerDeProyecto(widget.proyecto.id);
       if (!mounted) return;
       setState(() => _diagrama = diagrama);
+      _conectarTiempoReal(diagrama.id);
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        await AuthService().logout();
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (_) => false,
-        );
+        if (mounted) await cerrarSesionYVolverAlLogin(context);
         return;
       }
       if (!mounted) return;
@@ -70,15 +123,59 @@ class _ProyectoScreenState extends State<ProyectoScreen> {
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh, color: AppColors.texto3),
-            onPressed: _cargando ? null : _cargar,
+            onPressed: _cargando ? null : _recargarTodo,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          indicatorColor: AppColors.primario,
+          indicatorWeight: 2,
+          labelColor: AppColors.texto,
+          unselectedLabelColor: AppColors.texto3,
+          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          dividerColor: AppColors.borde,
+          tabs: const [Tab(text: 'Diagrama'), Tab(text: 'Historial'), Tab(text: 'Chat')],
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Resumen(proyecto: widget.proyecto, diagrama: _diagrama),
-          Expanded(child: _cuerpo()),
+          ?_avisoConexion(),
+          // IndexedStack (no TabBarView): las pestañas quedan montadas, no se
+          // recargan al cambiar, y deslizar no choca con mover el diagrama.
+          Expanded(
+            child: IndexedStack(
+              index: _tabs.index,
+              children: [
+                _cuerpo(),
+                HistorialTab(key: _historialKey, proyectoId: widget.proyecto.id, diagrama: _diagrama),
+                ChatTab(key: _chatKey, proyectoId: widget.proyecto.id, usuarioId: widget.usuario.id),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Aviso de conexión en vivo, como el de PanelLateral.jsx.
+  Widget? _avisoConexion() {
+    final texto = switch (_estadoConexion) {
+      EstadoConexion.reconectando => 'Sin conexión en vivo, reintentando…',
+      EstadoConexion.rechazado =>
+        'No se pudo conectar en vivo. Usá Actualizar o volvé a iniciar sesión.',
+      _ => null,
+    };
+    if (texto == null) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.errorBg,
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, size: 16, color: AppColors.error),
+          const SizedBox(width: 8),
+          Expanded(child: Text(texto, style: const TextStyle(fontSize: 13, color: AppColors.error))),
         ],
       ),
     );

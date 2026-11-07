@@ -29,3 +29,15 @@ String iniciales(String nombre) {
 
 /// Color estable por usuario, derivado de su id.
 ColorAvatar colorAvatar(int id) => _coloresAvatar[id.abs() % _coloresAvatar.length];
+
+/// Color de cada integrante en el chat y el historial (colorPorUsuario de la web).
+const _paletaColaboradores = [
+  Color(0xFF4C8DFF),
+  Color(0xFFE0A030),
+  Color(0xFF33B679),
+  Color(0xFFE05C5C),
+  Color(0xFFA06CE0),
+  Color(0xFF3FBFBF),
+];
+
+Color colorPorUsuario(int id) => _paletaColaboradores[id.abs() % _paletaColaboradores.length];

@@ -41,4 +41,11 @@ void main() {
     expect(p.miembros.length, 2);
     expect(p.updatedAt, isNotNull);
   });
+
+  test('formatearHora usa la hora local aunque venga con zona horaria', () {
+    final fecha = DateTime.parse('2026-11-07T10:26:56-04:00');
+    final local = fecha.toLocal();
+    String dos(int n) => n.toString().padLeft(2, '0');
+    expect(formatearHora(fecha), endsWith('${dos(local.hour)}:${dos(local.minute)}'));
+  });
 }
