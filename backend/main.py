@@ -2,17 +2,19 @@ import socketio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import get_cors_origins
+from app.core.config import get_cors_origin_regex, get_cors_origins
 from app.realtime import sio
 from app.routers import asistente, auth, chat, diagramas, generacion, historial, invitaciones, proyectos
 
 api = FastAPI(title="Gestor de Diagramas UML - API")
 
 # Habilitar CORS para que el frontend pueda comunicarse con el backend.
-# Orígenes configurables vía CORS_ORIGINS (ver backend/.env.example).
+# Orígenes configurables vía CORS_ORIGINS (ver backend/.env.example); en
+# desarrollo además se acepta cualquier puerto de localhost.
 api.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
+    allow_origin_regex=get_cors_origin_regex(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -10,7 +10,7 @@ from urllib.parse import parse_qs
 import socketio
 from socketio.exceptions import ConnectionRefusedError
 
-from app.core.config import get_cors_origins
+from app.core.config import origen_permitido
 from app.core.database import SessionLocal
 from app.core.deps import obtener_usuario_desde_token
 from app.core.permisos import obtener_proyecto_o_404, rol_de_usuario_en_proyecto
@@ -23,7 +23,7 @@ from app.services.revisor_diagrama import RevisorDiagrama
 
 logger = logging.getLogger(__name__)
 
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=get_cors_origins())
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=origen_permitido)
 
 # room -> {sid: {"id": usuario_id, "nombre": nombre}}
 salas: dict[str, dict[str, dict]] = {}
