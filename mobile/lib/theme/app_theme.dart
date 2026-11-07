@@ -15,6 +15,13 @@ class AppColors {
   static const primarioTexto = Color(0xFF04291B);
   static const errorBg = Color(0xFF3D1D18);
   static const error = Color(0xFFFF9E8F);
+  static const rolAdminBg = Color(0xFF3D1D18);
+  static const rolAdminFg = Color(0xFFFF9E8F);
+  static const rolColabBg = Color(0xFF10283F);
+  static const rolColabFg = Color(0xFF7CC4FF);
+  static const tipo = Color(0xFF7DD3FC);
+  static const estereotipoBg = Color(0xFF1E2230);
+  static const bordeEtiqueta = Color(0xFF2C3140);
 }
 
 class AppTheme {

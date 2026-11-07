@@ -8,7 +8,7 @@ import '../widgets/campo_texto.dart';
 import '../widgets/fondo_puntos.dart';
 import '../widgets/marca.dart';
 import '../widgets/mensaje_error.dart';
-import 'home_screen.dart';
+import 'proyectos_screen.dart';
 
 /// CU19 - Paso 1: el usuario inicia sesión en la app móvil.
 class LoginScreen extends StatefulWidget {
@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final Usuario usuario = await _auth.login(email, password);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomeScreen(usuario: usuario)),
+        MaterialPageRoute(builder: (_) => ProyectosScreen(usuario: usuario)),
       );
     } on ApiException catch (e) {
       setState(() {

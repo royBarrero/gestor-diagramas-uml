@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/proyectos_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -44,7 +44,7 @@ class _ArranqueScreenState extends State<ArranqueScreen> {
     Widget destino;
     try {
       final usuario = await AuthService().restaurarSesion();
-      destino = usuario != null ? HomeScreen(usuario: usuario) : const LoginScreen();
+      destino = usuario != null ? ProyectosScreen(usuario: usuario) : const LoginScreen();
     } on ApiException catch (e) {
       destino = LoginScreen(mensajeInicial: e.mensaje);
     }
