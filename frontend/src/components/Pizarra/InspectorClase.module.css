@@ -140,6 +140,30 @@
   border-color: var(--ui-primario);
 }
 
+.estatico {
+  width: 28px;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--ui-borde);
+  border-radius: 8px;
+  background: var(--ui-fondo);
+  color: var(--ui-texto-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.estatico:hover {
+  border-color: var(--ui-primario);
+}
+
+.estaticoActivo {
+  border-color: var(--ui-primario);
+  color: var(--ui-primario);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .nombreItem {
   flex: 1;
   min-width: 0;
@@ -228,4 +252,19 @@
 
 .botonEliminar:hover {
   background: var(--ui-error-bg);
+}
+
+.campoNombre select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-borde);
+  border-radius: 8px;
+  background: var(--ui-fondo);
+  outline: none;
+  color: var(--ui-texto);
+  font-size: 14px;
+}
+
+.campoNombre select:focus {
+  border-color: var(--ui-primario);
 }

@@ -215,6 +215,14 @@ export function PizarraProvider({ contenidoInicial, children }) {
     [setNodes, registrar]
   )
 
+  const cambiarTipoClase = useCallback(
+    (id, tipoClase) => {
+      registrar()
+      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, tipoClase } } : n)))
+    },
+    [setNodes, registrar]
+  )
+
   const agregarCampoItem = useCallback(
     (claseId, campo, valores = {}) => {
       const nuevoId = generarId(campo)
@@ -389,6 +397,7 @@ export function PizarraProvider({ contenidoInicial, children }) {
     seleccionarClase,
     agregarClase,
     renombrarClase,
+    cambiarTipoClase,
     agregarCampoItem,
     editarCampoItem,
     eliminarCampoItem,

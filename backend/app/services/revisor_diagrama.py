@@ -69,7 +69,7 @@ class _Foto:
         return _huella([self.clases[clase_id], self.relaciones_de(clase_id)])
 
     def tiene_contenido(self, clase_id: str) -> bool:
-        _, atributos, metodos = self.clases[clase_id]
+        atributos, metodos = self.clases[clase_id][1:3]
         return bool(atributos or metodos or self.relaciones_de(clase_id))
 
 

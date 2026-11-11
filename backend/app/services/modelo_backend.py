@@ -18,6 +18,18 @@ Convenciones de relación (mismas ya documentadas y probadas en
   intermedia X se vuelve dueña de dos `manyToOne` (hacia cada extremo) y los
   extremos la ven como `oneToMany`; no se genera la relación directa entre
   los extremos, sea cual sea su multiplicidad.
+
+Tipo de clase (`data.tipoClase`):
+- "clase" y "abstracta" son entidades JPA (`entidades`); la abstracta no se
+  puede instanciar, así que el generador no le da alta ni datos de ejemplo.
+- "enumeracion" es un `enum` Java (`enumeraciones`): sus atributos son los
+  literales, y un atributo de otra clase cuyo tipo es la enumeración se
+  persiste con `@Enumerated`.
+- "interfaz" es una `interface` Java (`interfaces`). Realización:
+  `source` implementa a `target`. Ni interfaces ni enumeraciones son tablas,
+  así que una asociación hacia ellas no se genera (queda en `advertencias`).
+- Un atributo estático no es columna (va a `campos_estaticos`); un método
+  estático va en la entidad, no como stub del Service.
 """
 
 from __future__ import annotations
@@ -26,7 +38,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from app.services.constantes_diagrama import PATRON_MULTIPLICIDAD, TIPOS_DATO_A_JAVA
+from app.services.constantes_diagrama import PATRON_MULTIPLICIDAD, TIPOS_DATO_A_JAVA, normalizar, parsear_firma
 from app.services.exportacion_diagrama import validar_contenido
 
 class GeneracionInvalidaError(Exception):
@@ -93,6 +105,13 @@ class CampoModelo:
     nombre: str
     tipo_java: str
     es_lista: bool = False
+    # Si el tipo es una enumeración del diagrama: sus literales (para @Enumerated
+    # y los datos de ejemplo). None = no es enumeración.
+    literales_enum: list[str] | None = None
+
+    @property
+    def es_enum(self) -> bool:
+        return self.literales_enum is not None
 
 
 @dataclass
@@ -109,7 +128,30 @@ class RelacionModelo:
 
 @dataclass
 class MetodoModelo:
-    nombre: str
+    nombre: str  # identificador del stub en el Service (todo el texto, como siempre)
+    # Firma parseada de "nombre(param: Tipo): Retorno", con tipos ya en Java.
+    nombre_java: str = ""
+    parametros: list[tuple[str, str]] = field(default_factory=list)
+    retorno_java: str = "void"
+    estatico: bool = False
+
+    def clave_firma(self) -> tuple:
+        return (self.nombre_java, tuple(tipo for _, tipo in self.parametros))
+
+
+@dataclass
+class EnumeracionModelo:
+    nombre_original: str
+    nombre_java: str
+    literales: list[str] = field(default_factory=list)
+
+
+@dataclass
+class InterfazModelo:
+    nombre_original: str
+    nombre_java: str
+    metodos: list[MetodoModelo] = field(default_factory=list)
+    extiende: list[str] = field(default_factory=list)  # otras interfaces (nombre_java)
 
 
 @dataclass
@@ -120,15 +162,20 @@ class EntidadModelo:
     campo_id_tipo: str
     campo_id_generado: bool  # False si el usuario ya definía un atributo "id"
     campos: list[CampoModelo] = field(default_factory=list)
-    metodos: list[MetodoModelo] = field(default_factory=list)
+    metodos: list[MetodoModelo] = field(default_factory=list)  # de instancia: stubs del Service
     extiende: str | None = None  # nombre_java de la superclase
     tiene_subclases: bool = False
     relaciones: list[RelacionModelo] = field(default_factory=list)
     endpoint: str = ""
+    es_abstracta: bool = False
+    implementa: list[str] = field(default_factory=list)  # interfaces (nombre_java)
+    campos_estaticos: list[CampoModelo] = field(default_factory=list)  # no son columnas
+    metodos_estaticos: list[MetodoModelo] = field(default_factory=list)
 
     def nombres_ocupados(self) -> set[str]:
         ocupados = {self.campo_id_nombre}
         ocupados.update(c.nombre for c in self.campos)
+        ocupados.update(c.nombre for c in self.campos_estaticos)
         ocupados.update(r.nombre for r in self.relaciones)
         return ocupados
 
@@ -136,7 +183,11 @@ class EntidadModelo:
 @dataclass
 class ModeloBackend:
     paquete: str
-    entidades: list[EntidadModelo]
+    entidades: list[EntidadModelo]  # solo lo persistible: clases y clases abstractas
+    enumeraciones: list[EnumeracionModelo] = field(default_factory=list)
+    interfaces: list[InterfazModelo] = field(default_factory=list)
+    # Lo del diagrama que no tiene traducción a código (se lista en el README).
+    advertencias: list[str] = field(default_factory=list)
 
 
 def campos_heredados(entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]) -> list[CampoModelo]:
@@ -152,6 +203,25 @@ def campos_heredados(entidad: EntidadModelo, entidades_por_nombre: dict[str, Ent
         heredados = list(superclase.campos) + heredados
         nombre_superclase = superclase.extiende
     return heredados
+
+
+def relaciones_heredadas(entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]) -> list[RelacionModelo]:
+    """Relaciones declaradas en las superclases (la FK vive en la tabla de la
+    superclase, pero la subclase también las tiene). Mismo recorrido que
+    `campos_heredados`; sin esto el DTO/Service de la subclase (CU11) y su
+    formulario Flutter (CU12) las perdían."""
+    heredadas: list[RelacionModelo] = []
+    nombre_superclase = entidad.extiende
+    while nombre_superclase:
+        superclase = entidades_por_nombre[nombre_superclase]
+        heredadas = list(superclase.relaciones) + heredadas
+        nombre_superclase = superclase.extiende
+    return heredadas
+
+
+def todas_las_relaciones(entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]) -> list[RelacionModelo]:
+    """`relaciones_heredadas` + las propias de `entidad`."""
+    return relaciones_heredadas(entidad, entidades_por_nombre) + entidad.relaciones
 
 
 def todos_los_campos(entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]) -> list[CampoModelo]:
@@ -177,12 +247,108 @@ def _nombre_unico(entidad: EntidadModelo, propuesto: str) -> str:
     return f"{propuesto}{contador}"
 
 
-def _construir_entidad(node: dict) -> EntidadModelo:
+_TIPOS_JAVA_DIRECTOS = {
+    "void", "int", "long", "double", "float", "boolean", "char", "byte", "short",
+    "String", "Integer", "Long", "Double", "Float", "Boolean", "Character", "Object",
+}
+# En firmas de métodos van con nombre calificado para no tener que calcular imports.
+_CALIFICADOS = {
+    "LocalDate": "java.time.LocalDate",
+    "BigDecimal": "java.math.BigDecimal",
+    "List<String>": "java.util.List<String>",
+}
+
+
+def _tipo_java_firma(tipo: str | None, nombres_modelo: set[str], por_defecto: str) -> str:
+    """Tipo Java de un parámetro o retorno escrito a mano en el diagrama. Lo que
+    no se reconoce (ni tipo del selector, ni tipo Java simple, ni una clase del
+    diagrama) queda como `por_defecto`, para que el proyecto siempre compile."""
+    texto = (tipo or "").strip()
+    if not texto:
+        return por_defecto
+    mapeado = TIPOS_DATO_A_JAVA.get(texto.lower())
+    if mapeado:
+        return _CALIFICADOS.get(mapeado, mapeado)
+    if texto in _TIPOS_JAVA_DIRECTOS:
+        return texto
+    como_clase = _a_identificador(texto, mayuscula_inicial=True, respaldo="")
+    return como_clase if como_clase in nombres_modelo else por_defecto
+
+
+def _construir_metodo(metodo: dict, nombres_modelo: set[str]) -> MetodoModelo:
+    nombre, parametros, retorno = parsear_firma(metodo["texto"])
+    retorno = retorno or (metodo.get("tipo") or "").strip() or None
+    params_java: list[tuple[str, str]] = []
+    usados: set[str] = set()
+    for posicion, (nombre_param, tipo_param) in enumerate(parametros, start=1):
+        identificador = _a_identificador(nombre_param, mayuscula_inicial=False, respaldo=f"p{posicion}")
+        if identificador in usados:
+            identificador = f"{identificador}{posicion}"
+        usados.add(identificador)
+        params_java.append((identificador, _tipo_java_firma(tipo_param, nombres_modelo, "Object")))
+    return MetodoModelo(
+        nombre=_a_identificador(metodo["texto"], mayuscula_inicial=False, respaldo="metodo"),
+        nombre_java=_a_identificador(nombre, mayuscula_inicial=False, respaldo="metodo"),
+        parametros=params_java,
+        retorno_java=_tipo_java_firma(retorno, nombres_modelo, "void"),
+        estatico=metodo.get("estatico") is True,
+    )
+
+
+def _a_constante(texto: str) -> str:
+    partes = [p for p in re.split(r"[^a-zA-Z0-9]+", _quitar_diacriticos(texto or "")) if p]
+    constante = "_".join(p.upper() for p in partes)
+    return f"_{constante}" if constante[:1].isdigit() else constante
+
+
+def _construir_enumeracion(node: dict) -> EnumeracionModelo:
+    literales: list[str] = []
+    for literal in node["data"]["atributos"]:
+        constante = _a_constante(literal["texto"])
+        if constante and constante not in literales:
+            literales.append(constante)
+    nombre_original = node["data"]["nombre"]
+    return EnumeracionModelo(
+        nombre_original=nombre_original,
+        nombre_java=_a_identificador(nombre_original, mayuscula_inicial=True, respaldo="Enumeracion"),
+        literales=literales,
+    )
+
+
+def _construir_interfaz(node: dict, nombres_modelo: set[str]) -> InterfazModelo:
+    nombre_original = node["data"]["nombre"]
+    return InterfazModelo(
+        nombre_original=nombre_original,
+        nombre_java=_a_identificador(nombre_original, mayuscula_inicial=True, respaldo="Interfaz"),
+        metodos=[_construir_metodo(m, nombres_modelo) for m in node["data"]["metodos"]],
+    )
+
+
+def _construir_campo(atributo: dict, enumeraciones: dict[str, EnumeracionModelo]) -> CampoModelo:
+    nombre_campo = _a_identificador(atributo["texto"], mayuscula_inicial=False, respaldo="campo")
+    enumeracion = enumeraciones.get(normalizar(atributo["tipo"])) if atributo["tipo"] else None
+    if enumeracion is not None:
+        return CampoModelo(nombre=nombre_campo, tipo_java=enumeracion.nombre_java, literales_enum=enumeracion.literales)
+    tipo_java, es_lista = _tipo_java_de(atributo["tipo"])
+    return CampoModelo(nombre=nombre_campo, tipo_java=tipo_java, es_lista=es_lista)
+
+
+def _construir_entidad(
+    node: dict,
+    enumeraciones: dict[str, EnumeracionModelo] | None = None,
+    nombres_modelo: set[str] | None = None,
+) -> EntidadModelo:
+    enumeraciones = enumeraciones or {}
+    nombres_modelo = nombres_modelo or set()
     nombre_original = node["data"]["nombre"]
     nombre_java = _a_identificador(nombre_original, mayuscula_inicial=True, respaldo="Clase")
 
     atributo_id = next(
-        (a for a in node["data"]["atributos"] if _quitar_diacriticos(a["texto"]).strip().lower() == "id"),
+        (
+            a
+            for a in node["data"]["atributos"]
+            if _quitar_diacriticos(a["texto"]).strip().lower() == "id" and not a.get("estatico")
+        ),
         None,
     )
     if atributo_id is not None:
@@ -191,18 +357,14 @@ def _construir_entidad(node: dict) -> EntidadModelo:
     else:
         campo_id_nombre, campo_id_tipo, campo_id_generado = "id", "Long", True
 
-    campos = []
+    campos, campos_estaticos = [], []
     for atributo in node["data"]["atributos"]:
         if atributo is atributo_id:
             continue
-        nombre_campo = _a_identificador(atributo["texto"], mayuscula_inicial=False, respaldo="campo")
-        tipo_java, es_lista = _tipo_java_de(atributo["tipo"])
-        campos.append(CampoModelo(nombre=nombre_campo, tipo_java=tipo_java, es_lista=es_lista))
+        campo = _construir_campo(atributo, enumeraciones)
+        (campos_estaticos if atributo.get("estatico") else campos).append(campo)
 
-    metodos = [
-        MetodoModelo(nombre=_a_identificador(metodo["texto"], mayuscula_inicial=False, respaldo="metodo"))
-        for metodo in node["data"]["metodos"]
-    ]
+    metodos_todos = [_construir_metodo(m, nombres_modelo) for m in node["data"]["metodos"]]
 
     return EntidadModelo(
         nombre_original=nombre_original,
@@ -211,8 +373,11 @@ def _construir_entidad(node: dict) -> EntidadModelo:
         campo_id_tipo=campo_id_tipo,
         campo_id_generado=campo_id_generado,
         campos=campos,
-        metodos=metodos,
+        metodos=[m for m in metodos_todos if not m.estatico],
         endpoint=_endpoint_de(nombre_java),
+        es_abstracta=node["data"].get("tipoClase") == "abstracta",
+        campos_estaticos=campos_estaticos,
+        metodos_estaticos=[m for m in metodos_todos if m.estatico],
     )
 
 
@@ -318,6 +483,15 @@ def _procesar_relacion_asociativa(edge: dict, entidades_por_id: dict[str, Entida
     destino.relaciones.append(rel_destino)
 
 
+_ETIQUETA_RELACION = {
+    "asociacion": "asociación",
+    "agregacion": "agregación",
+    "composicion": "composición",
+    "herencia": "herencia",
+    "realizacion": "realización",
+}
+
+
 def construir_modelo_backend(contenido: dict, nombre_proyecto: str) -> ModeloBackend:
     contenido = validar_contenido(contenido)
     nodes, edges = contenido["nodes"], contenido["edges"]
@@ -325,30 +499,87 @@ def construir_modelo_backend(contenido: dict, nombre_proyecto: str) -> ModeloBac
     if not nodes:
         raise GeneracionInvalidaError("El diagrama no tiene ninguna clase definida.")
 
-    entidades_por_id = {node["id"]: _construir_entidad(node) for node in nodes}
+    def de_tipo(*tipos: str) -> list[dict]:
+        return [n for n in nodes if n["data"]["tipoClase"] in tipos]
+
+    nombres_modelo = {_a_identificador(n["data"]["nombre"], mayuscula_inicial=True, respaldo="Clase") for n in nodes}
+
+    enumeraciones_por_id = {n["id"]: _construir_enumeracion(n) for n in de_tipo("enumeracion")}
+    # Un atributo puede escribir el tipo como el nombre de la enumeración o como su nombre Java.
+    enumeraciones_por_clave: dict[str, EnumeracionModelo] = {}
+    for enumeracion in enumeraciones_por_id.values():
+        enumeraciones_por_clave[normalizar(enumeracion.nombre_original)] = enumeracion
+        enumeraciones_por_clave[normalizar(enumeracion.nombre_java)] = enumeracion
+
+    interfaces_por_id = {n["id"]: _construir_interfaz(n, nombres_modelo) for n in de_tipo("interfaz")}
+    entidades_por_id = {
+        n["id"]: _construir_entidad(n, enumeraciones_por_clave, nombres_modelo) for n in de_tipo("clase", "abstracta")
+    }
 
     nombres_vistos: dict[str, str] = {}
-    for entidad in entidades_por_id.values():
-        if entidad.nombre_java in nombres_vistos:
-            otra = nombres_vistos[entidad.nombre_java]
+    for elemento in [*entidades_por_id.values(), *enumeraciones_por_id.values(), *interfaces_por_id.values()]:
+        if elemento.nombre_java in nombres_vistos:
+            otra = nombres_vistos[elemento.nombre_java]
             raise GeneracionInvalidaError(
-                f'Las clases "{otra}" y "{entidad.nombre_original}" generan el mismo nombre de clase Java '
-                f'("{entidad.nombre_java}"); renombrá una para poder generar el backend.'
+                f'Las clases "{otra}" y "{elemento.nombre_original}" generan el mismo nombre de clase Java '
+                f'("{elemento.nombre_java}"); renombrá una para poder generar el backend.'
             )
-        nombres_vistos[entidad.nombre_java] = entidad.nombre_original
+        nombres_vistos[elemento.nombre_java] = elemento.nombre_original
+
+    nombre_nodo = {n["id"]: n["data"]["nombre"] for n in nodes}
+    advertencias: list[str] = []
+
+    def omitir(edge: dict, motivo: str) -> None:
+        etiqueta = _ETIQUETA_RELACION.get(edge["data"]["tipo"], "relación")
+        advertencias.append(
+            f'La {etiqueta} entre "{nombre_nodo[edge["source"]]}" y "{nombre_nodo[edge["target"]]}" '
+            f"no se generó: {motivo}."
+        )
+
+    def implementar(origen_id: str, interfaz_id: str) -> None:
+        nombre = interfaces_por_id[interfaz_id].nombre_java
+        if origen_id in entidades_por_id:
+            lista = entidades_por_id[origen_id].implementa
+        else:
+            lista = interfaces_por_id[origen_id].extiende  # una interfaz que extiende a otra
+        if nombre not in lista:
+            lista.append(nombre)
 
     for edge in edges:
-        if edge["data"]["tipo"] == "herencia":
-            _procesar_herencia(edge, entidades_por_id)
+        tipo, origen, destino = edge["data"]["tipo"], edge["source"], edge["target"]
+        origen_valido = origen in entidades_por_id or origen in interfaces_por_id
+        if tipo == "herencia":
+            if origen in entidades_por_id and destino in entidades_por_id:
+                _procesar_herencia(edge, entidades_por_id)
+            elif origen_valido and destino in interfaces_por_id:
+                # Clase -> interfaz: en UML es una realización, pero se genera igual `implements`.
+                implementar(origen, destino)
+            else:
+                omitir(edge, "una herencia solo se genera entre clases o entre interfaces")
+        elif tipo == "realizacion":
+            if origen_valido and destino in interfaces_por_id:
+                implementar(origen, destino)
+            else:
+                omitir(edge, "solo se genera como `implements` cuando apunta a una interfaz")
 
     for edge in edges:
         tipo = edge["data"]["tipo"]
-        if tipo in ("asociacion", "agregacion", "composicion"):
-            _procesar_relacion_asociativa(edge, entidades_por_id)
-        # "dependencia" no genera ningún elemento de código: es una relación
-        # de uso/documentación, no de persistencia.
+        if tipo not in ("asociacion", "agregacion", "composicion"):
+            # "dependencia" no genera código: es una relación de uso, no de persistencia.
+            continue
+        extremos = [edge["source"], edge["target"], edge["data"].get("claseAsociacion")]
+        if any(e is not None and e not in entidades_por_id for e in extremos):
+            omitir(edge, "las interfaces y enumeraciones no son tablas, así que no se pueden relacionar con JPA")
+            continue
+        _procesar_relacion_asociativa(edge, entidades_por_id)
 
     paquete = "com.generado." + (_a_identificador(nombre_proyecto, mayuscula_inicial=False, respaldo="proyecto").lower() or "proyecto")
     paquete = re.sub(r"[^a-z0-9.]", "", paquete) or "com.generado.proyecto"
 
-    return ModeloBackend(paquete=paquete, entidades=list(entidades_por_id.values()))
+    return ModeloBackend(
+        paquete=paquete,
+        entidades=list(entidades_por_id.values()),
+        enumeraciones=list(enumeraciones_por_id.values()),
+        interfaces=list(interfaces_por_id.values()),
+        advertencias=advertencias,
+    )

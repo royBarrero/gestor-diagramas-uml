@@ -18,7 +18,7 @@ _PROMPT_SISTEMA = (
     "email (solo el administrador del proyecto puede gestionar miembros).\n"
     "- Editor de diagramas (Pizarra): crear clases con atributos y métodos, y "
     "relaciones entre clases (asociación, agregación, composición, herencia, "
-    "dependencia), con multiplicidades en los extremos.\n"
+    "dependencia, realización), con multiplicidades en los extremos.\n"
     "- Colaboración en tiempo real: varios usuarios pueden editar el mismo "
     "diagrama a la vez, los cambios se sincronizan solos.\n"
     "- Exportar/importar el diagrama en JSON, imagen (PNG) o XMI (compatible "

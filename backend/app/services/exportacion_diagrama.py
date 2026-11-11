@@ -6,7 +6,7 @@ del proyecto (el mismo shape {"nodes", "edges"} que ya persiste el modelo
 import json
 import re
 
-from app.services.constantes_diagrama import TIPOS_RELACION, VISIBILIDADES
+from app.services.constantes_diagrama import TIPOS_CLASE, TIPOS_RELACION, VISIBILIDADES
 
 
 class ArchivoInvalidoError(Exception):
@@ -34,6 +34,8 @@ def _validar_items(items, etiqueta: str, nombre_nodo: str) -> list[dict]:
                 "visibilidad": visibilidad,
                 "tipo": item.get("tipo", ""),
                 "texto": item.get("texto", ""),
+                # Miembro de clase (UML: subrayado). Ausente = de instancia.
+                "estatico": item.get("estatico") is True,
             }
         )
     return validados
@@ -68,6 +70,8 @@ def validar_contenido(contenido) -> dict:
             raise ArchivoInvalidoError(f'La clase "{nodo["id"]}" no tiene nombre.')
 
         position = nodo.get("position") if isinstance(nodo.get("position"), dict) else {}
+        # Un tipo desconocido no rechaza el archivo: queda como clase común.
+        tipo_clase = data.get("tipoClase") if data.get("tipoClase") in TIPOS_CLASE else "clase"
         nodes.append(
             {
                 "id": nodo["id"],
@@ -75,6 +79,7 @@ def validar_contenido(contenido) -> dict:
                 "position": {"x": position.get("x", 0), "y": position.get("y", 0)},
                 "data": {
                     "nombre": nombre,
+                    "tipoClase": tipo_clase,
                     "atributos": _validar_items(data.get("atributos"), "atributos", nombre),
                     "metodos": _validar_items(data.get("metodos"), "metodos", nombre),
                 },

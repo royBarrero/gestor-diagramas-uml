@@ -4,4 +4,5 @@ export const TIPOS_RELACION = [
   { valor: 'agregacion', etiqueta: 'Agregación', icono: 'ti-diamond' },
   { valor: 'composicion', etiqueta: 'Composición', icono: 'ti-square-rotated' },
   { valor: 'dependencia', etiqueta: 'Dependencia', icono: 'ti-arrow-guide' },
+  { valor: 'realizacion', etiqueta: 'Realización', icono: 'ti-triangle-dashed' },
 ]

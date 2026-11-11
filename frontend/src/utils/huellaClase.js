@@ -1,5 +1,6 @@
 function itemsNormalizados(items) {
-  return (items ?? []).map((i) => [i.visibilidad, i.tipo, i.texto].join('|')).sort()
+  // `estatico` solo suma a la huella si está activo: las huellas guardadas antes no cambian.
+  return (items ?? []).map((i) => [i.visibilidad, i.tipo, i.texto, ...(i.estatico ? ['S'] : [])].join('|')).sort()
 }
 
 // CU16: resume lo que define a una clase (nombre, atributos, métodos y
@@ -19,10 +20,15 @@ export function huellaClase(nodes, edges, claseId) {
       e.data?.claseAsociacion,
     ].join('|'))
     .sort()
-  return JSON.stringify([
+  const huella = [
     nodo.data?.nombre,
     itemsNormalizados(nodo.data?.atributos),
     itemsNormalizados(nodo.data?.metodos),
     relaciones,
-  ])
+  ]
+  // El tipo de clase solo entra si no es 'clase': así las huellas guardadas de
+  // clases comunes (anteriores a tipoClase) siguen siendo válidas.
+  const tipoClase = nodo.data?.tipoClase
+  if (tipoClase && tipoClase !== 'clase') huella.push(tipoClase)
+  return JSON.stringify(huella)
 }

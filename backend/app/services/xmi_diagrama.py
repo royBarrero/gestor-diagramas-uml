@@ -55,6 +55,7 @@ no alcanza a cubrir lo que modela el diagrama:
 import re
 from xml.etree import ElementTree as ET
 
+from app.services.constantes_diagrama import parsear_firma as _parsear_firma
 from app.services.exportacion_diagrama import ArchivoInvalidoError, validar_contenido
 
 NS_XMI = "http://schema.omg.org/spec/XMI/2.1"
@@ -66,38 +67,38 @@ XMI_IDREF = f"{{{NS_XMI}}}idref"
 ET.register_namespace("xmi", NS_XMI)
 ET.register_namespace("uml", NS_UML)
 
-_VISIBILIDAD_A_UML = {"publico": "public", "privado": "private", "protegido": "protected"}
+_VISIBILIDAD_A_UML = {"publico": "public", "privado": "private", "protegido": "protected", "paquete": "package"}
 _VISIBILIDAD_DESDE_UML = {v: k for k, v in _VISIBILIDAD_A_UML.items()}
 
 _PATRON_MULTIPLICIDAD = re.compile(r"^\s*(\d+|\*)\s*(?:\.\.\s*(\d+|\*)\s*)?$")
 
 
-_PATRON_FIRMA = re.compile(r"^\s*([^()]*?)\s*\((.*)\)\s*(?::\s*(.*?))?\s*$")
 
-_VISIBILIDAD_A_SCOPE_EA = {"publico": "Public", "privado": "Private", "protegido": "Protected"}
+# tipoClase -> metaclase UML del packagedElement. "abstracta" es una uml:Class con
+# isAbstract="true". La clase de asociación se decide aparte (depende de las relaciones).
+_METACLASE_UML = {
+    "clase": "uml:Class",
+    "abstracta": "uml:Class",
+    "interfaz": "uml:Interface",
+    "enumeracion": "uml:Enumeration",
+}
+_TIPO_CLASE_DESDE_UML = {"uml:Interface": "interfaz", "uml:Enumeration": "enumeracion"}
+_METACLASES_DE_NODO = ("uml:Class", "uml:AssociationClass", "uml:Interface", "uml:Enumeration")
 
 
-def _parsear_firma(texto: str) -> tuple[str, list[tuple[str, str]], str | None]:
-    """Separa el texto libre de un método con el formato
-    "nombre(param: tipo, ...): tipoRetorno" en (nombre, [(param, tipo)], retorno).
-    Paréntesis, parámetros y retorno son opcionales; lo que falte queda vacío
-    (lista vacía / None)."""
-    texto = (texto or "").strip()
-    match = _PATRON_FIRMA.match(texto)
-    if match:
-        nombre, texto_params, retorno = match.group(1), match.group(2), match.group(3)
-    else:
-        nombre, _, retorno = texto.partition(":")
-        texto_params = ""
+def _tipo_clase_desde_xmi(xmi_type: str | None, es_abstracta: str | None) -> str:
+    if xmi_type in _TIPO_CLASE_DESDE_UML:
+        return _TIPO_CLASE_DESDE_UML[xmi_type]
+    return "abstracta" if (es_abstracta or "").lower() == "true" else "clase"
 
-    parametros = []
-    for parte in texto_params.split(","):
-        if not parte.strip():
-            continue
-        nombre_param, _, tipo_param = parte.partition(":")
-        parametros.append((nombre_param.strip(), tipo_param.strip()))
 
-    return nombre.strip() or texto, parametros, (retorno or "").strip() or None
+def _abstracta_ea(elem: ET.Element) -> str | None:
+    """EA marca la clase abstracta en <properties isAbstract="true"> del bloque Extension."""
+    props = elem.find("properties")
+    return props.get("isAbstract") if props is not None else None
+
+
+_VISIBILIDAD_A_SCOPE_EA = {"publico": "Public", "privado": "Private", "protegido": "Protected", "paquete": "Package"}
 
 
 def _armar_firma(nombre: str, parametros: list[tuple[str, str]], retorno: str | None) -> str:
@@ -278,8 +279,14 @@ def _agregar_extension_ea(xmi: ET.Element, nodes: list[dict], ids_clases_asociac
     for node in nodes:
         elem = ET.SubElement(elementos, "element")
         elem.set(XMI_IDREF, node["id"])
-        elem.set(XMI_TYPE, "uml:AssociationClass" if node["id"] in ids_clases_asociacion else "uml:Class")
+        tipo_clase = node["data"]["tipoClase"]
+        elem.set(
+            XMI_TYPE,
+            "uml:AssociationClass" if node["id"] in ids_clases_asociacion else _METACLASE_UML[tipo_clase],
+        )
         elem.set("name", node["data"]["nombre"])
+        if tipo_clase == "abstracta":
+            ET.SubElement(elem, "properties").set("isAbstract", "true")
 
         atributos = ET.SubElement(elem, "attributes")
         for atributo in node["data"]["atributos"]:
@@ -359,7 +366,7 @@ def _contenido_desde_extension_ea(extension: ET.Element, nombres_parametros: dic
     ids_clases: set[str] = set()
     nodes = []
     for elem in elementos.findall("element"):
-        if elem.get(XMI_TYPE) not in ("uml:Class", "uml:AssociationClass"):
+        if elem.get(XMI_TYPE) not in _METACLASES_DE_NODO:
             continue
         clase_id = elem.get(XMI_IDREF)
         nombre = elem.get("name")
@@ -408,7 +415,12 @@ def _contenido_desde_extension_ea(extension: ET.Element, nombres_parametros: dic
                 "id": clase_id,
                 "type": "clase",
                 "position": {"x": 80 + columna * 260, "y": 80 + fila * 220},
-                "data": {"nombre": nombre, "atributos": atributos, "metodos": metodos},
+                "data": {
+                    "nombre": nombre,
+                    "tipoClase": _tipo_clase_desde_xmi(elem.get(XMI_TYPE), _abstracta_ea(elem)),
+                    "atributos": atributos,
+                    "metodos": metodos,
+                },
             }
         )
 
@@ -435,7 +447,8 @@ def _contenido_desde_extension_ea(extension: ET.Element, nombres_parametros: dic
                 edge_id = f"{edge_id}-{len(edges)}"
             ids_edges.add(edge_id)
 
-            if ea_type == "Generalization":
+            # EA escribe "Realisation" (ortografía británica) para la realización.
+            if ea_type in ("Generalization", "Realisation", "Realization"):
                 edges.append(
                     {
                         "id": edge_id,
@@ -443,7 +456,7 @@ def _contenido_desde_extension_ea(extension: ET.Element, nombres_parametros: dic
                         "target": target_id,
                         "type": "relacion",
                         "data": {
-                            "tipo": "herencia",
+                            "tipo": "herencia" if ea_type == "Generalization" else "realizacion",
                             "multiplicidadOrigen": None,
                             "multiplicidadDestino": None,
                             "nombre": None,
@@ -537,17 +550,33 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
     for node in nodes:
         clase = ET.SubElement(modelo, "packagedElement")
         es_clase_asociacion = node["id"] in relacion_de_clase_asociacion
-        clase.set(XMI_TYPE, "uml:AssociationClass" if es_clase_asociacion else "uml:Class")
+        tipo_clase = node["data"]["tipoClase"]
+        clase.set(XMI_TYPE, "uml:AssociationClass" if es_clase_asociacion else _METACLASE_UML[tipo_clase])
         clase.set(XMI_ID, node["id"])
         clase.set("name", node["data"]["nombre"])
+        if tipo_clase == "abstracta":
+            clase.set("isAbstract", "true")
         elementos_clase[node["id"]] = clase
 
-        for atributo in node["data"]["atributos"]:
+        # En una enumeración el compartimento de atributos son sus literales.
+        es_enumeracion = tipo_clase == "enumeracion" and not es_clase_asociacion
+        literales = node["data"]["atributos"] if es_enumeracion else []
+        atributos = [] if es_enumeracion else node["data"]["atributos"]
+
+        for literal in literales:
+            lit_elem = ET.SubElement(clase, "ownedLiteral")
+            lit_elem.set(XMI_TYPE, "uml:EnumerationLiteral")
+            lit_elem.set(XMI_ID, literal["id"])
+            lit_elem.set("name", literal["texto"])
+
+        for atributo in atributos:
             attr_elem = ET.SubElement(clase, "ownedAttribute")
             attr_elem.set(XMI_TYPE, "uml:Property")
             attr_elem.set(XMI_ID, atributo["id"])
             attr_elem.set("name", atributo["texto"])
             attr_elem.set("visibility", _VISIBILIDAD_A_UML[atributo["visibilidad"]])
+            if atributo["estatico"]:
+                attr_elem.set("isStatic", "true")
             if atributo["tipo"]:
                 _agregar_ref_tipo(attr_elem, id_tipo(atributo["tipo"]))
 
@@ -560,6 +589,8 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             op_elem.set(XMI_ID, metodo["id"])
             op_elem.set("name", nombre)
             op_elem.set("visibility", _VISIBILIDAD_A_UML[metodo["visibilidad"]])
+            if metodo["estatico"]:
+                op_elem.set("isStatic", "true")
             for pos, (nombre_param, tipo_param) in enumerate(parametros):
                 param_elem = ET.SubElement(op_elem, "ownedParameter")
                 param_elem.set(XMI_TYPE, "uml:Parameter")
@@ -594,9 +625,11 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             gen_elem.set("general", destino_id)
             continue
 
-        if tipo == "dependencia":
+        if tipo in ("dependencia", "realizacion"):
+            # uml:Realization es una especialización de uml:Dependency en UML 2.5:
+            # mismo formato (client = el que implementa, supplier = el realizado).
             dep_elem = ET.SubElement(modelo, "packagedElement")
-            dep_elem.set(XMI_TYPE, "uml:Dependency")
+            dep_elem.set(XMI_TYPE, "uml:Dependency" if tipo == "dependencia" else "uml:Realization")
             dep_elem.set(XMI_ID, edge["id"])
             if data["nombre"]:
                 dep_elem.set("name", data["nombre"])
@@ -641,7 +674,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
             tipos_primitivos[elem.get(XMI_ID)] = elem.get("name", "")
     # Los tipos que son clases del diagrama referencian el xmi:id de la clase.
     for elem in modelo.findall("packagedElement"):
-        if elem.get(XMI_TYPE) in ("uml:Class", "uml:AssociationClass") and elem.get(XMI_ID) and elem.get("name"):
+        if elem.get(XMI_TYPE) in _METACLASES_DE_NODO and elem.get(XMI_ID) and elem.get("name"):
             tipos_primitivos.setdefault(elem.get(XMI_ID), elem.get("name"))
 
     extension = xmi.find(f"{{{NS_XMI}}}Extension")
@@ -651,7 +684,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
     ids_nodos = set()
     generalizaciones = []  # (edge_id, origen_id, destino_id)
     for elem in modelo.findall("packagedElement"):
-        if elem.get(XMI_TYPE) not in ("uml:Class", "uml:AssociationClass"):
+        if elem.get(XMI_TYPE) not in _METACLASES_DE_NODO:
             continue
         clase_id = elem.get(XMI_ID)
         nombre = elem.get("name")
@@ -662,6 +695,16 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
         ids_nodos.add(clase_id)
 
         atributos = []
+        for lit_elem in elem.findall("ownedLiteral"):
+            atributos.append(
+                {
+                    "id": lit_elem.get(XMI_ID) or f"{clase_id}-lit-{len(atributos)}",
+                    "visibilidad": "publico",
+                    "tipo": "",
+                    "texto": lit_elem.get("name", ""),
+                }
+            )
+
         for attr_elem in elem.findall("ownedAttribute"):
             visibilidad = _VISIBILIDAD_DESDE_UML.get(attr_elem.get("visibility"), "publico")
             atributos.append(
@@ -672,6 +715,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                         _ref_tipo(attr_elem), tipos_primitivos, tipos_atributos_ea.get(attr_elem.get(XMI_ID))
                     ),
                     "texto": attr_elem.get("name", ""),
+                    "estatico": attr_elem.get("isStatic") == "true",
                 }
             )
 
@@ -684,6 +728,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                     "visibilidad": visibilidad,
                     "tipo": "",
                     "texto": _texto_de_operacion(op_elem, tipos_primitivos, operaciones_ea),
+                    "estatico": op_elem.get("isStatic") == "true",
                 }
             )
 
@@ -693,7 +738,12 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                 "id": clase_id,
                 "type": "clase",
                 "position": {"x": 80 + columna * 260, "y": 80 + fila * 220},
-                "data": {"nombre": nombre, "atributos": atributos, "metodos": metodos},
+                "data": {
+                    "nombre": nombre,
+                    "tipoClase": _tipo_clase_desde_xmi(elem.get(XMI_TYPE), elem.get("isAbstract")),
+                    "atributos": atributos,
+                    "metodos": metodos,
+                },
             }
         )
 
@@ -729,13 +779,13 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
     for elem in modelo.findall("packagedElement"):
         tipo_xmi = elem.get(XMI_TYPE)
 
-        if tipo_xmi == "uml:Dependency":
+        if tipo_xmi in ("uml:Dependency", "uml:Realization", "uml:InterfaceRealization"):
             agregar_edge(
                 elem.get(XMI_ID),
                 elem.get("client"),
                 elem.get("supplier"),
                 {
-                    "tipo": "dependencia",
+                    "tipo": "dependencia" if tipo_xmi == "uml:Dependency" else "realizacion",
                     "multiplicidadOrigen": None,
                     "multiplicidadDestino": None,
                     "nombre": elem.get("name"),

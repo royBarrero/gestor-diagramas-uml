@@ -202,7 +202,8 @@ function RelacionEdge({ id, source, target, data, selected }) {
   const trazoEstilo = {
     stroke: color,
     strokeWidth: selected ? 2 : 1.5,
-    strokeDasharray: tipo === 'dependencia' ? '6 4' : undefined,
+    // Dependencia y realización son las dos relaciones UML de línea punteada.
+    strokeDasharray: tipo === 'dependencia' || tipo === 'realizacion' ? '6 4' : undefined,
   }
 
   const distancia = Math.hypot(targetX - sourceX, targetY - sourceY) || 1
@@ -249,7 +250,8 @@ function RelacionEdge({ id, source, target, data, selected }) {
         />
       )}
 
-      {tipo === 'herencia' && (
+      {/* Herencia y realización comparten el triángulo hueco; solo cambia la línea (sólida / punteada). */}
+      {(tipo === 'herencia' || tipo === 'realizacion') && (
         <polygon
           points={trianguloPuntos(targetX, targetY, angulo)}
           fill="var(--ui-fondo)"

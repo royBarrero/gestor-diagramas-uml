@@ -20,6 +20,13 @@ _ETIQUETA_RELACION = {
     "agregacion": "agregación",
     "composicion": "composición",
     "dependencia": "dependencia",
+    "realizacion": "realización",
+}
+_ETIQUETA_TIPO_CLASE = {
+    "clase": "clase",
+    "abstracta": "clase abstracta",
+    "interfaz": "interfaz",
+    "enumeracion": "enumeración",
 }
 _TIPO_DE_OPERACION = {
     "crear_clase": "crear_clase",
@@ -37,18 +44,28 @@ def _items_normalizados(items) -> list:
     """Sin ids ni orden: reordenar una lista o regenerar ids no cambia la clase."""
     if not isinstance(items, list):
         return []
-    filas = [[i.get("visibilidad"), i.get("tipo"), i.get("texto")] for i in items if isinstance(i, dict)]
+    # "estatico" solo se agrega si es True: las firmas de antes no cambian.
+    filas = [
+        [i.get("visibilidad"), i.get("tipo"), i.get("texto"), *(["estatico"] if i.get("estatico") is True else [])]
+        for i in items
+        if isinstance(i, dict)
+    ]
     return sorted(filas, key=str)
 
 
 def firma_clase(nodo: dict) -> list:
     """Solo lo que cuenta como cambio: moverla en el lienzo no cambia su firma."""
     data = nodo.get("data") if isinstance(nodo.get("data"), dict) else {}
-    return [
+    firma = [
         data.get("nombre"),
         _items_normalizados(data.get("atributos")),
         _items_normalizados(data.get("metodos")),
     ]
+    # Solo si no es "clase": las firmas/huellas de clases comunes no cambian
+    # respecto de las guardadas antes de que existiera tipoClase.
+    if data.get("tipoClase") not in (None, "clase"):
+        firma.append(data["tipoClase"])
+    return firma
 
 
 def firma_relacion(edge: dict) -> list:
@@ -81,6 +98,7 @@ def _vista_items(items) -> list[dict]:
             "nombre": str(i.get("texto") or "").strip(),
             "tipo": i.get("tipo") or "",
             "visibilidad": i.get("visibilidad"),
+            "estatico": i.get("estatico") is True,
         }
         for i in items
         if isinstance(i, dict) and str(i.get("texto") or "").strip()
@@ -93,6 +111,7 @@ def _vista_clase(nodo: dict | None) -> dict | None:
     data = _data(nodo)
     return {
         "nombre": str(data.get("nombre") or ""),
+        "tipoClase": data.get("tipoClase") or "clase",
         "atributos": _vista_items(data.get("atributos")),
         "metodos": _vista_items(data.get("metodos")),
     }
@@ -262,6 +281,8 @@ def _comparar_items(campo: str, antes: list[dict], despues: list[dict]) -> list[
                     "a": actual["visibilidad"],
                 }
             )
+        if anterior["estatico"] != actual["estatico"]:
+            cambios.append({"op": "estatico", "nombre": actual["nombre"], "a": actual["estatico"]})
     return cambios
 
 
@@ -318,6 +339,8 @@ def comparar_clase(
     else:
         if antes["nombre"] != despues["nombre"]:
             cambios.append({"op": "renombrar_clase", "de": antes["nombre"], "a": despues["nombre"]})
+        if antes["tipoClase"] != despues["tipoClase"]:
+            cambios.append({"op": "tipo_clase", "clase": despues["nombre"], "a": despues["tipoClase"]})
         for campo in _CAMPOS:
             cambios += _comparar_items(campo, antes[campo], despues[campo])
     return cambios + _comparar_relaciones(relaciones_antes, relaciones_despues)
@@ -417,11 +440,13 @@ def _frases_elementos(cambios: list[dict]) -> list[str]:
             frases.append(f'cambió el tipo de {cambio["nombre"]} de {cambio["de"] or "-"} a {cambio["a"] or "-"}')
         elif cambio["op"] == "visibilidad":
             frases.append(f'cambió la visibilidad de {cambio["nombre"]} a {cambio["a"]}')
+        elif cambio["op"] == "estatico":
+            frases.append(f'marcó {cambio["nombre"]} como {"estático" if cambio["a"] else "de instancia"}')
     return frases
 
 
 def _preposicion(cambios: list[dict]) -> str:
-    ops = {c["op"] for c in cambios if c["op"] in ("agregar", "eliminar", "renombrar", "tipo", "visibilidad")}
+    ops = {c["op"] for c in cambios if c["op"] in ("agregar", "eliminar", "renombrar", "tipo", "visibilidad", "estatico")}
     if ops == {"agregar"}:
         return "a"
     if ops == {"eliminar"}:
@@ -439,6 +464,8 @@ def redactar(cambios: list[dict], nombre_clase: str) -> str:
             frases.append(_frase_eliminacion(cambio))
         elif cambio["op"] == "renombrar_clase":
             frases.append(f'renombró la clase {cambio["de"]} a {cambio["a"]}')
+        elif cambio["op"] == "tipo_clase":
+            frases.append(f'convirtió {cambio["clase"]} en {_ETIQUETA_TIPO_CLASE.get(cambio["a"], "clase")}')
 
     de_elementos = _frases_elementos(cambios)
     if de_elementos:
