@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { usePizarra } from '../../contexts/PizarraContext'
 import { TIPOS_DATO } from '../../constants/tiposDato'
+import { TIPOS_CLASE } from '../../constants/tiposClase'
 import styles from './InspectorClase.module.css'
 
-const SIMBOLOS = { publico: '+', privado: '-', protegido: '#' }
-const ORDEN_VISIBILIDAD = ['publico', 'protegido', 'privado']
+const SIMBOLOS = { publico: '+', privado: '-', protegido: '#', paquete: '~' }
+const ORDEN_VISIBILIDAD = ['publico', 'protegido', 'paquete', 'privado']
 const OPCION_OTRO = '__otro'
 
 function cicloVisibilidad(actual) {
@@ -13,8 +14,14 @@ function cicloVisibilidad(actual) {
 }
 
 function InspectorClase() {
-  const { claseSeleccionada: clase, seleccionarClase, renombrarClase, editarCampoItem, pedirEliminarClase } =
-    usePizarra()
+  const {
+    claseSeleccionada: clase,
+    seleccionarClase,
+    renombrarClase,
+    cambiarTipoClase,
+    editarCampoItem,
+    pedirEliminarClase,
+  } = usePizarra()
   // Atributos para los que el usuario eligió "Otro…" y escribe el tipo a mano.
   const [tipoLibre, setTipoLibre] = useState(() => new Set())
 
@@ -22,6 +29,7 @@ function InspectorClase() {
 
   const atributos = clase.data.atributos ?? []
   const metodos = clase.data.metodos ?? []
+  const esEnumeracion = clase.data.tipoClase === 'enumeracion'
 
   function marcarTipoLibre(itemId, activo) {
     setTipoLibre((actual) => {
@@ -44,6 +52,21 @@ function InspectorClase() {
   function volverALista(item) {
     marcarTipoLibre(item.id, false)
     if (!TIPOS_DATO.includes(item.tipo)) editarCampoItem(clase.id, 'atributos', item.id, { tipo: '' })
+  }
+
+  // UML: un miembro estático (de clase, no de instancia) se muestra subrayado.
+  function renderEstatico(campo, item) {
+    return (
+      <button
+        type="button"
+        className={`${styles.estatico} ${item.estatico ? styles.estaticoActivo : ''}`}
+        onClick={() => editarCampoItem(clase.id, campo, item.id, { estatico: !item.estatico })}
+        title={item.estatico ? 'Estático (clic para hacerlo de instancia)' : 'De instancia (clic para hacerlo estático)'}
+        aria-pressed={Boolean(item.estatico)}
+      >
+        S
+      </button>
+    )
   }
 
   function renderVisibilidad(campo, item) {
@@ -75,63 +98,93 @@ function InspectorClase() {
         <input value={clase.data.nombre} onChange={(event) => renombrarClase(clase.id, event.target.value)} />
       </label>
 
-      <section className={styles.seccion}>
-        <div className={styles.seccionHeader}>
-          <h3 className={styles.subtitulo}>Atributos</h3>
-          <span className={styles.subtituloSecundario}>Tipo</span>
-        </div>
-        {atributos.map((item) => {
-          const libre = tipoLibre.has(item.id) || (item.tipo && !TIPOS_DATO.includes(item.tipo))
-          return (
+      <label className={styles.campoNombre}>
+        Tipo de clase
+        <select
+          value={clase.data.tipoClase ?? 'clase'}
+          onChange={(event) => cambiarTipoClase(clase.id, event.target.value)}
+        >
+          {TIPOS_CLASE.map((tipo) => (
+            <option key={tipo.valor} value={tipo.valor}>
+              {tipo.etiqueta}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {esEnumeracion ? (
+        <section className={styles.seccion}>
+          <h3 className={styles.subtitulo}>Literales</h3>
+          {atributos.map((item) => (
             <div key={item.id} className={styles.fila}>
-              {renderVisibilidad('atributos', item)}
               <span className={styles.nombreItem}>{item.texto || '(sin nombre)'}</span>
-              {libre ? (
-                <>
-                  <input
-                    className={`${styles.control} ${styles.tipoLibre}`}
-                    placeholder="Tipo"
-                    value={item.tipo ?? ''}
-                    onChange={(event) => editarCampoItem(clase.id, 'atributos', item.id, { tipo: event.target.value })}
-                    autoFocus={tipoLibre.has(item.id) && !item.tipo}
-                  />
-                  <button
-                    type="button"
-                    className={styles.botonLista}
-                    onClick={() => volverALista(item)}
-                    title="Volver a la lista de tipos"
-                  >
-                    <i className="ti ti-list" />
-                  </button>
-                </>
-              ) : (
-                <select
-                  className={`${styles.control} ${styles.selectTipo}`}
-                  value={item.tipo ?? ''}
-                  onChange={(event) => handleSelectTipo(item, event.target.value)}
-                >
-                  <option value="">Elegí…</option>
-                  {TIPOS_DATO.map((tipo) => (
-                    <option key={tipo} value={tipo}>
-                      {tipo}
-                    </option>
-                  ))}
-                  <option value={OPCION_OTRO}>Otro… (escribir)</option>
-                </select>
-              )}
             </div>
-          )
-        })}
-        {atributos.length === 0 && (
-          <p className={styles.vacio}>Todavía no tiene atributos. Escribilos directo en la caja de la clase, en “+ atributo”.</p>
-        )}
-      </section>
+          ))}
+          {atributos.length === 0 && (
+            <p className={styles.vacio}>Todavía no tiene literales. Escribilos directo en la caja, en “+ literal”.</p>
+          )}
+        </section>
+      ) : (
+        <section className={styles.seccion}>
+          <div className={styles.seccionHeader}>
+            <h3 className={styles.subtitulo}>Atributos</h3>
+            <span className={styles.subtituloSecundario}>Tipo</span>
+          </div>
+          {atributos.map((item) => {
+            const libre = tipoLibre.has(item.id) || (item.tipo && !TIPOS_DATO.includes(item.tipo))
+            return (
+              <div key={item.id} className={styles.fila}>
+                {renderVisibilidad('atributos', item)}
+                {renderEstatico('atributos', item)}
+                <span className={styles.nombreItem}>{item.texto || '(sin nombre)'}</span>
+                {libre ? (
+                  <>
+                    <input
+                      className={`${styles.control} ${styles.tipoLibre}`}
+                      placeholder="Tipo"
+                      value={item.tipo ?? ''}
+                      onChange={(event) => editarCampoItem(clase.id, 'atributos', item.id, { tipo: event.target.value })}
+                      autoFocus={tipoLibre.has(item.id) && !item.tipo}
+                    />
+                    <button
+                      type="button"
+                      className={styles.botonLista}
+                      onClick={() => volverALista(item)}
+                      title="Volver a la lista de tipos"
+                    >
+                      <i className="ti ti-list" />
+                    </button>
+                  </>
+                ) : (
+                  <select
+                    className={`${styles.control} ${styles.selectTipo}`}
+                    value={item.tipo ?? ''}
+                    onChange={(event) => handleSelectTipo(item, event.target.value)}
+                  >
+                    <option value="">Elegí…</option>
+                    {TIPOS_DATO.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                    <option value={OPCION_OTRO}>Otro… (escribir)</option>
+                  </select>
+                )}
+              </div>
+            )
+          })}
+          {atributos.length === 0 && (
+            <p className={styles.vacio}>Todavía no tiene atributos. Escribilos directo en la caja de la clase, en “+ atributo”.</p>
+          )}
+        </section>
+      )}
 
       <section className={styles.seccion}>
         <h3 className={styles.subtitulo}>Métodos</h3>
         {metodos.map((item) => (
           <div key={item.id} className={styles.fila}>
             {renderVisibilidad('metodos', item)}
+            {renderEstatico('metodos', item)}
             <span className={styles.nombreItem}>{item.texto || '(sin nombre)'}</span>
           </div>
         ))}

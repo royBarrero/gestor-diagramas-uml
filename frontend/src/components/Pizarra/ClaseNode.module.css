@@ -179,6 +179,25 @@
   color: var(--ui-texto);
 }
 
+/* UML: los miembros estáticos (de clase) van subrayados. */
+.estatico {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* UML: el nombre de una clase abstracta va en cursiva. */
+.nombreAbstracto {
+  font-style: italic;
+}
+
+/* «interface» / «enumeration», antes del nombre (UML 2.5). */
+.palabraClave {
+  flex-shrink: 0;
+  color: var(--ui-texto-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .inputNombre {
   flex: 1;
   min-width: 0;

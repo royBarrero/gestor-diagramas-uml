@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { usePizarra } from '../../contexts/PizarraContext'
+import { infoTipoClase } from '../../constants/tiposClase'
 import styles from './ClaseNode.module.css'
 
-const SIMBOLOS = { publico: '+', privado: '-', protegido: '#' }
+const SIMBOLOS = { publico: '+', privado: '-', protegido: '#', paquete: '~' }
 
-function FilaCampo({ item, esPrimero, esUltimo, onRenombrar, onMover, onEliminar }) {
+// `esLiteral`: fila de una enumeración — UML muestra solo el nombre del literal,
+// sin visibilidad ni tipo.
+function FilaCampo({ item, esLiteral, esPrimero, esUltimo, onRenombrar, onMover, onEliminar }) {
   const [editando, setEditando] = useState(false)
   // Esc dispara un blur al cerrar el input; esta marca evita que ese blur confirme.
   const cancelado = useRef(false)
@@ -49,10 +52,10 @@ function FilaCampo({ item, esPrimero, esUltimo, onRenombrar, onMover, onEliminar
         onClick={() => setEditando(true)}
         title="Clic para editar"
       >
-        <span className={styles.simbolo}>{SIMBOLOS[item.visibilidad]}</span>
-        <span className={styles.nombreItem}>{item.texto || ' '}</span>
+        {!esLiteral && <span className={styles.simbolo}>{SIMBOLOS[item.visibilidad]}</span>}
+        <span className={`${styles.nombreItem} ${item.estatico ? styles.estatico : ''}`}>{item.texto || ' '}</span>
       </button>
-      {item.tipo && (
+      {!esLiteral && item.tipo && (
         <span className={styles.tipo}>
           : <span className={styles.tipoValor}>{item.tipo}</span>
         </span>
@@ -72,11 +75,11 @@ function FilaCampo({ item, esPrimero, esUltimo, onRenombrar, onMover, onEliminar
   )
 }
 
-function SeccionCampos({ claseId, campo, items }) {
+function SeccionCampos({ claseId, campo, items, esLiteral = false }) {
   const { agregarCampoItem, editarCampoItem, moverCampoItem, eliminarCampoItem } = usePizarra()
   const [escribiendo, setEscribiendo] = useState(false)
   const cancelado = useRef(false)
-  const etiqueta = campo === 'atributos' ? 'atributo' : 'método'
+  const etiqueta = esLiteral ? 'literal' : campo === 'atributos' ? 'atributo' : 'método'
 
   // Enter agrega el ítem y deja el campo vacío para el siguiente; Enter sin
   // texto, Esc o salir del campo cierran el borrador.
@@ -110,6 +113,7 @@ function SeccionCampos({ claseId, campo, items }) {
         <FilaCampo
           key={item.id}
           item={item}
+          esLiteral={esLiteral}
           esPrimero={indice === 0}
           esUltimo={indice === items.length - 1}
           onRenombrar={(texto) => editarCampoItem(claseId, campo, item.id, { texto })}
@@ -155,6 +159,7 @@ function ClaseNode({ id, data }) {
   const presencias = data.presencias ?? []
   const otraPersona = presencias.find((p) => !p.esYo)
   const sugerencia = data.sugerencia
+  const tipoClase = infoTipoClase(data.tipoClase)
 
   // El botón está dentro del nodo: sin esto, el clic también seleccionaría la clase.
   function handleClickSugerencia(event) {
@@ -189,6 +194,9 @@ function ClaseNode({ id, data }) {
       >
         <div className={styles.header} onDoubleClick={() => setEditandoNombre(true)}>
           <span className={styles.punto} style={otraPersona ? { background: otraPersona.color } : undefined} />
+          {tipoClase.palabraClave && !editandoNombre && (
+            <span className={styles.palabraClave}>{tipoClase.palabraClave}</span>
+          )}
           {editandoNombre ? (
             <input
               className={`${styles.inputNombre} nodrag`}
@@ -198,7 +206,9 @@ function ClaseNode({ id, data }) {
               onKeyDown={(event) => event.key === 'Enter' && event.target.blur()}
             />
           ) : (
-            <span className={styles.nombre}>{data.nombre}</span>
+            <span className={`${styles.nombre} ${data.tipoClase === 'abstracta' ? styles.nombreAbstracto : ''}`}>
+              {data.nombre}
+            </span>
           )}
           {sugerencia?.esParaMi && (
             <button
@@ -227,10 +237,15 @@ function ClaseNode({ id, data }) {
               {sugerencia.destinoNombre?.[0]?.toUpperCase() ?? '?'}
             </button>
           )}
-          <span className={styles.estereotipo}>ENTITY</span>
+          {tipoClase.propiedad && <span className={styles.estereotipo}>{tipoClase.propiedad}</span>}
         </div>
 
-        <SeccionCampos claseId={id} campo="atributos" items={data.atributos ?? []} />
+        <SeccionCampos
+          claseId={id}
+          campo="atributos"
+          items={data.atributos ?? []}
+          esLiteral={data.tipoClase === 'enumeracion'}
+        />
         <div className={styles.separador} />
         <SeccionCampos claseId={id} campo="metodos" items={data.metodos ?? []} />
       </div>
