@@ -18,7 +18,22 @@ no alcanza a cubrir lo que modela el diagrama:
 - El tipo de dato de un atributo (`atributos[].tipo`) se modela como un
   `uml:PrimitiveType` propio del modelo (uno por cada nombre de tipo
   distinto usado), referenciado por `type` en el `ownedAttribute`. No se
-  intenta resolver contra la librería de tipos primitivos de UML.
+  intenta resolver contra la librería de tipos primitivos de UML. Como EA no
+  resuelve esa referencia al importar, además se escribe un bloque
+  `<xmi:Extension extender="Enterprise Architect">` con solo los elementos
+  (clases): tipo de cada atributo y retorno/parámetros de cada operación en
+  texto plano, que es de donde EA los lee. Sin layout ni conectores. EA
+  solo lee esa extensión si el archivo trae `<xmi:Documentation
+  exporter="Enterprise Architect">` como primer hijo de `<xmi:XMI>`.
+- Un tipo (de atributo, parámetro o retorno) que coincide exactamente con
+  el nombre de una clase del diagrama referencia el xmi:id de esa clase;
+  solo los demás tipos generan un `uml:PrimitiveType`.
+- Métodos: el texto libre ("nombre(param: tipo, ...): retorno") se parsea;
+  `name` lleva solo el nombre (con la firma completa EA muestra
+  "anular(): void()"), cada parámetro va como `ownedParameter
+  direction="in"` y el retorno como `ownedParameter direction="return"`. Al
+  importar se rearma el texto con esa forma, así que un método guardado sin
+  paréntesis ("cerrar") vuelve como "cerrar()".
 - La multiplicidad de un extremo de relación solo viaja si el texto libre
   que cargó el usuario matchea un patrón reconocible (`"1"`, `"0..1"`,
   `"0..*"`, `"*"`). Texto libre no estándar (ej. "muchos") no tiene
@@ -55,6 +70,54 @@ _VISIBILIDAD_A_UML = {"publico": "public", "privado": "private", "protegido": "p
 _VISIBILIDAD_DESDE_UML = {v: k for k, v in _VISIBILIDAD_A_UML.items()}
 
 _PATRON_MULTIPLICIDAD = re.compile(r"^\s*(\d+|\*)\s*(?:\.\.\s*(\d+|\*)\s*)?$")
+
+
+_PATRON_FIRMA = re.compile(r"^\s*([^()]*?)\s*\((.*)\)\s*(?::\s*(.*?))?\s*$")
+
+_VISIBILIDAD_A_SCOPE_EA = {"publico": "Public", "privado": "Private", "protegido": "Protected"}
+
+
+def _parsear_firma(texto: str) -> tuple[str, list[tuple[str, str]], str | None]:
+    """Separa el texto libre de un método con el formato
+    "nombre(param: tipo, ...): tipoRetorno" en (nombre, [(param, tipo)], retorno).
+    Paréntesis, parámetros y retorno son opcionales; lo que falte queda vacío
+    (lista vacía / None)."""
+    texto = (texto or "").strip()
+    match = _PATRON_FIRMA.match(texto)
+    if match:
+        nombre, texto_params, retorno = match.group(1), match.group(2), match.group(3)
+    else:
+        nombre, _, retorno = texto.partition(":")
+        texto_params = ""
+
+    parametros = []
+    for parte in texto_params.split(","):
+        if not parte.strip():
+            continue
+        nombre_param, _, tipo_param = parte.partition(":")
+        parametros.append((nombre_param.strip(), tipo_param.strip()))
+
+    return nombre.strip() or texto, parametros, (retorno or "").strip() or None
+
+
+def _armar_firma(nombre: str, parametros: list[tuple[str, str]], retorno: str | None) -> str:
+    params = ", ".join(f"{n}: {t}" if t else n for n, t in parametros)
+    firma = f"{nombre}({params})"
+    return f"{firma}: {retorno}" if retorno else firma
+
+
+def _nombre_tipo(ref: str | None, tipos_primitivos: dict[str, str], respaldo: str | None = None) -> str:
+    """Nombre legible de un tipo referenciado por id: primero los
+    uml:PrimitiveType del propio archivo, después lo que diga la extensión de
+    EA (`respaldo`), y por último los ids de la librería de EA que no se
+    declaran en el archivo (ej. "EAJava_String" -> "String")."""
+    if ref in tipos_primitivos:
+        return tipos_primitivos[ref]
+    if respaldo:
+        return respaldo
+    if ref and ref.startswith("EA") and "_" in ref:
+        return ref.split("_", 1)[1]
+    return ""
 
 
 def _slug(texto: str) -> str:
@@ -159,7 +222,126 @@ def _visibilidad_ea(valor: str | None) -> str:
     return _VISIBILIDAD_DESDE_UML.get((valor or "").lower(), "publico")
 
 
-def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
+def _indice_extension_ea(extension: ET.Element | None) -> tuple[dict[str, str], dict[str, dict]]:
+    """Tipos que EA escribe en texto plano en su extensión, indexados por el
+    id del elemento del modelo UML al que corresponden:
+    - atributos: {id_atributo: tipo}
+    - operaciones: {id_operacion: {"retorno": tipo | None,
+                                   "params": [(id_parametro, tipo, nombre | None)]}}
+    """
+    tipos_atributos: dict[str, str] = {}
+    operaciones: dict[str, dict] = {}
+    elementos = extension.find("elements") if extension is not None else None
+    if elementos is None:
+        return tipos_atributos, operaciones
+
+    for attr_elem in elementos.iter("attribute"):
+        props = attr_elem.find("properties")
+        if attr_elem.get(XMI_IDREF) and props is not None and props.get("type"):
+            tipos_atributos[attr_elem.get(XMI_IDREF)] = props.get("type")
+
+    for op_elem in elementos.iter("operation"):
+        if not op_elem.get(XMI_IDREF):
+            continue
+        tipo_elem = op_elem.find("type")
+        params = []
+        params_container = op_elem.find("parameters")
+        if params_container is not None:
+            for param_elem in params_container.findall("parameter"):
+                props = param_elem.find("properties")
+                if props is not None and props.get("ck") == "return":
+                    continue
+                params.append(
+                    (
+                        param_elem.get(XMI_IDREF),
+                        props.get("type", "") if props is not None else "",
+                        param_elem.get("name"),
+                    )
+                )
+        operaciones[op_elem.get(XMI_IDREF)] = {
+            "retorno": (tipo_elem.get("type") or None) if tipo_elem is not None else None,
+            "params": params,
+        }
+    return tipos_atributos, operaciones
+
+
+def _agregar_extension_ea(xmi: ET.Element, nodes: list[dict], ids_clases_asociacion: set[str]) -> None:
+    """Bloque propietario <xmi:Extension extender="Enterprise Architect">:
+    EA ignora los <type xmi:idref> hacia uml:PrimitiveType al importar y toma
+    de acá el tipo de cada atributo y el retorno/parámetros de cada operación.
+    Solo los elementos (clases); el layout y los conectores no viajan."""
+    extension = ET.SubElement(xmi, f"{{{NS_XMI}}}Extension")
+    extension.set("extender", "Enterprise Architect")
+    extension.set("extenderID", "6.5")
+    elementos = ET.SubElement(extension, "elements")
+
+    for node in nodes:
+        elem = ET.SubElement(elementos, "element")
+        elem.set(XMI_IDREF, node["id"])
+        elem.set(XMI_TYPE, "uml:AssociationClass" if node["id"] in ids_clases_asociacion else "uml:Class")
+        elem.set("name", node["data"]["nombre"])
+
+        atributos = ET.SubElement(elem, "attributes")
+        for atributo in node["data"]["atributos"]:
+            attr_elem = ET.SubElement(atributos, "attribute")
+            attr_elem.set(XMI_IDREF, atributo["id"])
+            attr_elem.set("name", atributo["texto"])
+            attr_elem.set("scope", _VISIBILIDAD_A_SCOPE_EA[atributo["visibilidad"]])
+            ET.SubElement(attr_elem, "properties").set("type", atributo["tipo"] or "")
+
+        operaciones = ET.SubElement(elem, "operations")
+        for metodo in node["data"]["metodos"]:
+            nombre, parametros, retorno = _firma_de_metodo(metodo)
+            op_elem = ET.SubElement(operaciones, "operation")
+            op_elem.set(XMI_IDREF, metodo["id"])
+            op_elem.set("name", nombre)
+            op_elem.set("scope", _VISIBILIDAD_A_SCOPE_EA[metodo["visibilidad"]])
+            if retorno:
+                ET.SubElement(op_elem, "type").set("type", retorno)
+            if parametros:
+                params_elem = ET.SubElement(op_elem, "parameters")
+                for pos, (nombre_param, tipo_param) in enumerate(parametros):
+                    param_elem = ET.SubElement(params_elem, "parameter")
+                    param_elem.set(XMI_IDREF, f"{metodo['id']}-p{pos}")
+                    props = ET.SubElement(param_elem, "properties")
+                    props.set("pos", str(pos))
+                    props.set("type", tipo_param)
+                    props.set("ck", "in")
+
+
+def _firma_de_metodo(metodo: dict) -> tuple[str, list[tuple[str, str]], str | None]:
+    """Firma del método para exportar: lo que diga su texto y, si el texto no
+    trae retorno, el `tipo` del ítem (algunos orígenes lo cargan ahí)."""
+    nombre, parametros, retorno = _parsear_firma(metodo["texto"])
+    return nombre, parametros, retorno or (metodo.get("tipo") or "").strip() or None
+
+
+def _texto_de_operacion(op_elem: ET.Element, tipos_primitivos: dict[str, str], operaciones_ea: dict[str, dict]) -> str:
+    """Reconstruye "nombre(param: tipo): retorno" a partir de los
+    ownedParameter de la operación (y de la extensión de EA para los tipos
+    que no se resuelven en el modelo). Un `name` que ya trae paréntesis es
+    de un XMI exportado antes de este cambio (firma completa en el nombre) y
+    se deja tal cual."""
+    nombre = op_elem.get("name", "")
+    if "(" in nombre:
+        return nombre
+
+    firma_ea = operaciones_ea.get(op_elem.get(XMI_ID), {"retorno": None, "params": []})
+    tipos_params_ea = {param_id: tipo for param_id, tipo, _ in firma_ea["params"] if param_id}
+
+    parametros = []
+    retorno = None
+    for param_elem in op_elem.findall("ownedParameter"):
+        if param_elem.get("direction") == "return":
+            retorno = _nombre_tipo(_ref_tipo(param_elem), tipos_primitivos, firma_ea["retorno"]) or None
+            continue
+        tipo = _nombre_tipo(_ref_tipo(param_elem), tipos_primitivos, tipos_params_ea.get(param_elem.get(XMI_ID)))
+        parametros.append((param_elem.get("name") or f"p{len(parametros)}", tipo))
+
+    return _armar_firma(nombre, parametros, retorno or firma_ea["retorno"])
+
+
+def _contenido_desde_extension_ea(extension: ET.Element, nombres_parametros: dict[str, str] | None = None) -> dict | None:
     """Lector alternativo para XMI real de Enterprise Architect: en vez de
     resolver las referencias cruzadas por xmi:id/xmi:idref del <uml:Model>
     formal (que EA no expone de la forma en que este módulo la espera), lee
@@ -171,6 +353,8 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
     elementos = extension.find("elements")
     if elementos is None:
         return None
+    _, operaciones_ea = _indice_extension_ea(extension)
+    nombres_parametros = nombres_parametros or {}
 
     ids_clases: set[str] = set()
     nodes = []
@@ -201,12 +385,20 @@ def _contenido_desde_extension_ea(extension: ET.Element) -> dict | None:
         ops_container = elem.find("operations")
         if ops_container is not None:
             for op_elem in ops_container.findall("operation"):
+                nombre_op = op_elem.get("name", "")
+                firma = operaciones_ea.get(op_elem.get(XMI_IDREF))
+                if firma is not None and "(" not in nombre_op:
+                    parametros = [
+                        (nombres_parametros.get(param_id) or nombre_param or f"p{pos}", tipo_param)
+                        for pos, (param_id, tipo_param, nombre_param) in enumerate(firma["params"])
+                    ]
+                    nombre_op = _armar_firma(nombre_op, parametros, firma["retorno"])
                 metodos.append(
                     {
                         "id": op_elem.get(XMI_IDREF) or f"{clase_id}-op-{len(metodos)}",
                         "visibilidad": _visibilidad_ea(op_elem.get("scope")),
                         "tipo": "",
-                        "texto": op_elem.get("name", ""),
+                        "texto": nombre_op,
                     }
                 )
 
@@ -314,13 +506,23 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
 
     xmi = ET.Element(f"{{{NS_XMI}}}XMI")
     xmi.set(f"{{{NS_XMI}}}version", "2.1")
+    # Sin esta marca EA ignora el bloque <xmi:Extension> (y con él los tipos).
+    documentacion = ET.SubElement(xmi, f"{{{NS_XMI}}}Documentation")
+    documentacion.set("exporter", "Enterprise Architect")
+    documentacion.set("exporterVersion", "6.5")
     modelo = ET.SubElement(xmi, f"{{{NS_UML}}}Model")
     modelo.set(XMI_ID, "modelo-diagrama")
     modelo.set("name", nombre_diagrama or "Diagrama")
 
     tipos_primitivos: dict[str, str] = {}
+    ids_por_nombre_clase: dict[str, str] = {}
+    for node in nodes:
+        ids_por_nombre_clase.setdefault(node["data"]["nombre"].strip(), node["id"])
 
-    def id_tipo_primitivo(nombre_tipo: str) -> str:
+    def id_tipo(nombre_tipo: str) -> str:
+        # Un tipo que es una clase del diagrama referencia la clase, no un PrimitiveType.
+        if nombre_tipo.strip() in ids_por_nombre_clase:
+            return ids_por_nombre_clase[nombre_tipo.strip()]
         if nombre_tipo not in tipos_primitivos:
             tipos_primitivos[nombre_tipo] = f"tipo-{_slug(nombre_tipo)}"
         return tipos_primitivos[nombre_tipo]
@@ -347,14 +549,32 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             attr_elem.set("name", atributo["texto"])
             attr_elem.set("visibility", _VISIBILIDAD_A_UML[atributo["visibilidad"]])
             if atributo["tipo"]:
-                _agregar_ref_tipo(attr_elem, id_tipo_primitivo(atributo["tipo"]))
+                _agregar_ref_tipo(attr_elem, id_tipo(atributo["tipo"]))
 
         for metodo in node["data"]["metodos"]:
+            # name = solo el nombre: con la firma completa EA muestra
+            # "anular(): void()" porque le agrega su propio "()".
+            nombre, parametros, retorno = _firma_de_metodo(metodo)
             op_elem = ET.SubElement(clase, "ownedOperation")
             op_elem.set(XMI_TYPE, "uml:Operation")
             op_elem.set(XMI_ID, metodo["id"])
-            op_elem.set("name", metodo["texto"])
+            op_elem.set("name", nombre)
             op_elem.set("visibility", _VISIBILIDAD_A_UML[metodo["visibilidad"]])
+            for pos, (nombre_param, tipo_param) in enumerate(parametros):
+                param_elem = ET.SubElement(op_elem, "ownedParameter")
+                param_elem.set(XMI_TYPE, "uml:Parameter")
+                param_elem.set(XMI_ID, f"{metodo['id']}-p{pos}")
+                param_elem.set("name", nombre_param)
+                param_elem.set("direction", "in")
+                if tipo_param:
+                    _agregar_ref_tipo(param_elem, id_tipo(tipo_param))
+            if retorno:
+                ret_elem = ET.SubElement(op_elem, "ownedParameter")
+                ret_elem.set(XMI_TYPE, "uml:Parameter")
+                ret_elem.set(XMI_ID, f"{metodo['id']}-ret")
+                ret_elem.set("name", "return")
+                ret_elem.set("direction", "return")
+                _agregar_ref_tipo(ret_elem, id_tipo(retorno))
 
     for nombre_tipo, id_tipo in tipos_primitivos.items():
         tipo_elem = ET.SubElement(modelo, "packagedElement")
@@ -398,6 +618,8 @@ def contenido_a_xmi(contenido: dict, nombre_diagrama: str) -> str:
             assoc_elem.set("name", data["nombre"])
         _agregar_extremos(assoc_elem, edge)
 
+    _agregar_extension_ea(xmi, nodes, set(relacion_de_clase_asociacion))
+
     ET.indent(xmi, space="  ")
     return ET.tostring(xmi, encoding="unicode", xml_declaration=True)
 
@@ -417,6 +639,13 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
     for elem in modelo.findall("packagedElement"):
         if elem.get(XMI_TYPE) == "uml:PrimitiveType":
             tipos_primitivos[elem.get(XMI_ID)] = elem.get("name", "")
+    # Los tipos que son clases del diagrama referencian el xmi:id de la clase.
+    for elem in modelo.findall("packagedElement"):
+        if elem.get(XMI_TYPE) in ("uml:Class", "uml:AssociationClass") and elem.get(XMI_ID) and elem.get("name"):
+            tipos_primitivos.setdefault(elem.get(XMI_ID), elem.get("name"))
+
+    extension = xmi.find(f"{{{NS_XMI}}}Extension")
+    tipos_atributos_ea, operaciones_ea = _indice_extension_ea(extension)
 
     nodes = []
     ids_nodos = set()
@@ -439,7 +668,9 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                 {
                     "id": attr_elem.get(XMI_ID) or f"{clase_id}-attr-{len(atributos)}",
                     "visibilidad": visibilidad,
-                    "tipo": tipos_primitivos.get(_ref_tipo(attr_elem), ""),
+                    "tipo": _nombre_tipo(
+                        _ref_tipo(attr_elem), tipos_primitivos, tipos_atributos_ea.get(attr_elem.get(XMI_ID))
+                    ),
                     "texto": attr_elem.get("name", ""),
                 }
             )
@@ -452,7 +683,7 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
                     "id": op_elem.get(XMI_ID) or f"{clase_id}-op-{len(metodos)}",
                     "visibilidad": visibilidad,
                     "tipo": "",
-                    "texto": op_elem.get("name", ""),
+                    "texto": _texto_de_operacion(op_elem, tipos_primitivos, operaciones_ea),
                 }
             )
 
@@ -564,9 +795,11 @@ def xmi_a_contenido(archivo_bytes: bytes) -> dict:
         )
 
     if not nodes:
-        extension = xmi.find(f"{{{NS_XMI}}}Extension")
         if extension is not None:
-            resultado_ea = _contenido_desde_extension_ea(extension)
+            nombres_parametros = {
+                p.get(XMI_ID): p.get("name") for p in xmi.iter("ownedParameter") if p.get(XMI_ID) and p.get("name")
+            }
+            resultado_ea = _contenido_desde_extension_ea(extension, nombres_parametros)
             if resultado_ea is not None:
                 return resultado_ea
 
