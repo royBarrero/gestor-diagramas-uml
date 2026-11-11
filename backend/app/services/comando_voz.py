@@ -19,9 +19,9 @@ MODELO_INTERPRETACION = "gpt-4.1"
 
 _VOCABULARIO_UML = (
     "Diagrama de clases UML. Clase, atributo, método, relación, asociación, herencia, "
-    "agregación, composición, dependencia, clase intermedia, clase de asociación, "
+    "agregación, composición, dependencia, realización, implementa, clase intermedia, clase de asociación, "
     "multiplicidad, uno, muchos, asterisco, cero punto punto uno, uno punto punto asterisco, "
-    "público, privado, protegido, String, int, float, double, boolean, Date."
+    "público, privado, protegido, de paquete, String, int, float, double, boolean, Date."
 )
 
 
@@ -256,7 +256,7 @@ _PROMPT_SISTEMA = (
     "escrito exactamente igual.\n\n"
     "Nombres: clases en PascalCase ('detalle venta' -> 'DetalleVenta'), atributos y métodos en "
     "camelCase con minúscula inicial ('precio unitario' -> 'precioUnitario'). Visibilidad "
-    "'publico' salvo que se diga otra. Tipo de dato de un atributo solo si el comando lo menciona "
+    "'publico' salvo que se diga otra ('de paquete', 'package' o 'virgulilla' -> 'paquete'). Tipo de dato de un atributo solo si el comando lo menciona "
     "(ej. 'nombre de tipo String'); si no, tipo=null.\n\n"
     "Multiplicidades dichas en voz alta: 'uno' -> '1'; 'muchos', 'varios', 'asterisco', "
     "'estrella', 'n' -> '*'; 'cero o uno', 'cero punto punto uno' -> '0..1'; 'uno o más', 'uno o "
@@ -267,7 +267,9 @@ _PROMPT_SISTEMA = (
     "'Muchos a muchos entre A y B' -> '*' en ambos extremos. Si no se dice ninguna "
     "multiplicidad, null. Si se dice 'relación' sin especificar tipo, es 'asociacion'. Para "
     "herencia ('B hereda de A', 'B es un A'): claseOrigen=B (subclase), claseDestino=A, sin "
-    "multiplicidades. Para composición/agregación: claseOrigen es el todo, claseDestino la parte.\n\n"
+    "multiplicidades. Para realización ('A implementa B', 'A realiza B'): tipo 'realizacion', "
+    "claseOrigen=A (la que implementa), claseDestino=B (la realizada), sin multiplicidades. "
+    "Para composición/agregación: claseOrigen es el todo, claseDestino la parte.\n\n"
     "Clase intermedia (clase de asociación): 'X es la clase intermedia entre A y B', 'X como "
     "clase de asociación de A y B', 'A y B muchos a muchos con la clase intermedia X' -> si la "
     "clase X no existe, primero crear_clase X (con los atributos que se digan); después, si NO "
@@ -474,6 +476,7 @@ _ETIQUETA_TIPO = {
     "agregacion": "agregación",
     "composicion": "composición",
     "dependencia": "dependencia",
+    "realizacion": "realización",
 }
 
 

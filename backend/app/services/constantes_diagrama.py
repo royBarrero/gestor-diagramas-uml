@@ -6,8 +6,11 @@ exportación/importación (CU10).
 import re
 import unicodedata
 
-VISIBILIDADES = ("publico", "privado", "protegido")
-TIPOS_RELACION = ("asociacion", "herencia", "agregacion", "composicion", "dependencia")
+VISIBILIDADES = ("publico", "privado", "protegido", "paquete")
+TIPOS_RELACION = ("asociacion", "herencia", "agregacion", "composicion", "dependencia", "realizacion")
+# Clasificador UML de cada nodo (`data.tipoClase`). Un nodo sin el campo es "clase"
+# (diagramas guardados antes de que existiera). Espejo: frontend/src/constants/tiposClase.js.
+TIPOS_CLASE = ("clase", "abstracta", "interfaz", "enumeracion")
 
 # Tipos de dato de un atributo, con el nombre que muestra el editor y su tipo Java
 # en el backend generado (CU11). Es la única fuente: agregar uno acá también lo
@@ -56,3 +59,30 @@ def normalizar(texto: str | None) -> str:
     """
     texto_normalizado = unicodedata.normalize("NFKD", (texto or "").strip().lower())
     return "".join(c for c in texto_normalizado if not unicodedata.combining(c))
+
+
+_PATRON_FIRMA = re.compile(r"^\s*([^()]*?)\s*\((.*)\)\s*(?::\s*(.*?))?\s*$")
+
+
+def parsear_firma(texto: str) -> tuple[str, list[tuple[str, str]], str | None]:
+    """Separa el texto libre de un método con el formato
+    "nombre(param: tipo, ...): tipoRetorno" en (nombre, [(param, tipo)], retorno).
+    La usan el XMI (CU10) y la generación de código (CU11).
+    Paréntesis, parámetros y retorno son opcionales; lo que falte queda vacío
+    (lista vacía / None)."""
+    texto = (texto or "").strip()
+    match = _PATRON_FIRMA.match(texto)
+    if match:
+        nombre, texto_params, retorno = match.group(1), match.group(2), match.group(3)
+    else:
+        nombre, _, retorno = texto.partition(":")
+        texto_params = ""
+
+    parametros = []
+    for parte in texto_params.split(","):
+        if not parte.strip():
+            continue
+        nombre_param, _, tipo_param = parte.partition(":")
+        parametros.append((nombre_param.strip(), tipo_param.strip()))
+
+    return nombre.strip() or texto, parametros, (retorno or "").strip() or None

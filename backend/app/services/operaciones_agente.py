@@ -52,6 +52,7 @@ _ETIQUETA_RELACION = {
     "agregacion": "agregación",
     "composicion": "composición",
     "dependencia": "dependencia",
+    "realizacion": "realización",
 }
 
 

@@ -29,6 +29,7 @@ from app.services.modelo_backend import (
     ModeloBackend,
     RelacionModelo,
     construir_modelo_backend,
+    todas_las_relaciones,
     todos_los_campos,
 )
 
@@ -538,10 +539,13 @@ def _snake(nombre_java: str) -> str:
     return "".join(resultado)
 
 
-def _relaciones_incluidas(entidad: EntidadModelo) -> list[RelacionModelo]:
+def _relaciones_incluidas(
+    entidad: EntidadModelo, entidades_por_nombre: dict[str, EntidadModelo]
+) -> list[RelacionModelo]:
     # Solo relaciones singulares del lado dueño: son las únicas que el
     # backend generado serializa de forma simple (objeto anidado con id).
-    return [r for r in entidad.relaciones if r.propietaria and not r.es_coleccion]
+    # Incluye las heredadas: el DTO de la subclase también las trae.
+    return [r for r in todas_las_relaciones(entidad, entidades_por_nombre) if r.propietaria and not r.es_coleccion]
 
 
 class _Campo:
@@ -561,7 +565,7 @@ def _campos_dart(entidad: EntidadModelo, entidades_por_nombre: dict[str, Entidad
     campos = [_Campo(c.nombre, _tipo_dart(c.tipo_java)) for c in todos_los_campos(entidad, entidades_por_nombre)]
     campos += [
         _Campo(f"{r.nombre}Id", "int", es_relacion=True, entidad_relacionada=r.entidad_relacionada)
-        for r in _relaciones_incluidas(entidad)
+        for r in _relaciones_incluidas(entidad, entidades_por_nombre)
     ]
     return campos
 
